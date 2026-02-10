@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Refine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        .code-editor { font-family: 'Fira Code', monospace; background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+        .code-output { background-color: #1e293b; border: 1px solid #334155; overflow-x: auto; }
+        .btn-primary { background: linear-gradient(to right, #2563eb, #9333ea); transition: all 0.3s; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .prose pre { background: transparent !important; padding: 0 !important; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-50 min-h-screen">
+
+    <nav class="bg-slate-800 p-4 border-b border-slate-700 shadow-xl">
+        <div class="container mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl"></span>
+                <div>
+                    <h1 id="platform-title" class="text-xl font-bold text-sky-400 leading-none">Code Refine</h1>
+                    <p id="platform-subtitle" class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Developer Edition</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <div id="student-tracking" class="hidden flex items-center gap-3 bg-slate-700/50 px-4 py-1.5 rounded-lg border border-slate-600">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold">Total Reviews:</span>
+                    <span id="review-count" class="text-sky-400 font-bold">0</span>
+                </div>
+                <span id="user-badge" class="px-3 py-1 rounded-full bg-slate-700 text-xs font-bold border border-slate-600">Standard</span>
+                <a href="/" class="text-slate-400 hover:text-white transition-colors"><i class="fas fa-sign-out-alt"></i></a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                        <label class="text-[10px] font-bold text-slate-400 block mb-2 uppercase italic"><i class="fas fa-camera mr-1"></i> Scan Code from Image</label>
+                        <input type="file" id="ocrFile" accept="image/*" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
+                    </div>
+                    
+                    <div id="policy-upload-zone" class="hidden bg-slate-800 p-3 rounded-xl border border-dashed border-sky-500/40">
+                        <label class="text-[10px] font-bold text-sky-400 block mb-2 uppercase italic"><i class="fas fa-file-shield mr-1"></i> Upload Company Policy</label>
+                        <input type="file" id="policyFile" accept=".txt,.pdf" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <i class="fas fa-code text-sky-400"></i> Source Code
+                    </h2>
+                    <select id="languageSelect" class="bg-slate-800 border border-slate-700 rounded-md p-1.5 text-sm outline-none">
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                </div>
+                
+                <textarea id="codeInput" class="code-editor w-full h-80 p-4 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/50" placeholder="Enter your code or upload an image..."></textarea>
+                
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-sm font-bold mb-3 text-slate-400 uppercase tracking-tighter">Analysis Focus Areas</p>
+                    <div class="flex flex-wrap gap-4 text-sm">
+                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Bugs" checked class="mr-2 accent-sky-500">Bugs</label>
+                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Performance" checked class="mr-2 accent-sky-500">Performance</label>
+                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Security" checked class="mr-2 accent-sky-500">Security</label>
+                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Best Practices" checked class="mr-2 accent-sky-500">Best Practices</label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="reviewBtn" class="btn-primary font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                        <i class="fas fa-microscope"></i> Run Review
+                    </button>
+                    <button id="fixBtn" class="bg-slate-700 hover:bg-slate-600 font-bold py-3 px-4 rounded-xl border border-slate-600 flex items-center justify-center gap-2">
+                        <i class="fas fa-wand-magic-sparkles"></i> Auto-Rewrite
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-purple-400"></i> Analysis Results
+                    </h2>
+                    <div id="plagiarism-badge" class="hidden px-3 py-1 bg-orange-900/40 border border-orange-700 rounded-lg">
+                        <span class="text-[10px] text-orange-300 font-bold uppercase">Similarity: </span>
+                        <span id="plag-score" class="text-xs font-bold text-white">0%</span>
+                    </div>
+                </div>
+                
+                <div id="reviewResults" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl flex-grow overflow-y-auto max-h-[550px]">
+                    <div class="grid grid-cols-4 gap-3 text-center mb-6">
+                        <div class="p-2 bg-red-900/40 border border-red-700/50 rounded-xl">
+                            <p id="critical-count" class="font-bold text-2xl text-red-400">0</p>
+                            <p class="text-[10px] uppercase font-bold text-red-300">Critical</p>
+                        </div>
+                        <div class="p-2 bg-orange-900/40 border border-orange-700/50 rounded-xl">
+                            <p id="high-count" class="font-bold text-2xl text-orange-400">0</p>
+                            <p class="text-[10px] uppercase font-bold text-orange-300">High</p>
+                        </div>
+                        <div class="p-2 bg-yellow-900/40 border border-yellow-700/50 rounded-xl">
+                            <p id="medium-count" class="font-bold text-2xl text-yellow-400">0</p>
+                            <p class="text-[10px] uppercase font-bold text-yellow-300">Medium</p>
+                        </div>
+                        <div class="p-2 bg-blue-900/40 border border-blue-700/50 rounded-xl">
+                             <p id="low-count" class="font-bold text-2xl text-blue-400">0</p>
+                             <p class="text-[10px] uppercase font-bold text-blue-300">Low</p>
+                        </div>
+                    </div>
+                    <div id="reviewFeedback" class="prose prose-invert max-w-none text-slate-300">
+                        <p class="italic text-slate-500">Run a review to see AI insights...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 bg-slate-800/30 p-6 rounded-3xl border border-slate-800">
+            <h2 class="text-xl font-bold mb-6 text-center text-slate-400 uppercase tracking-widest">Code Transformation</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-sm font-bold mb-2 text-slate-500 px-2 uppercase italic">Original Input</h3>
+                    <pre class="code-output rounded-xl p-4 min-h-[200px]"><code id="originalCodeOutput" class="language-python"></code></pre>
+                </div>
+                <div class="relative">
+                    <h3 class="text-sm font-bold mb-2 text-sky-400 px-2 uppercase italic">AI Rewritten Version</h3>
+                     <pre class="code-output rounded-xl p-4 min-h-[200px] border-sky-900/30"><code id="rewrittenCodeOutput" class="language-python"></code></pre>
+                     <button id="copyBtn" class="absolute top-10 right-4 bg-slate-700/80 hover:bg-sky-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-600">
+                         <i class="fas fa-copy mr-1"></i> Copy Code
+                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const userType = params.get('userType') || 'developer';
+            const studentName = params.get('email') || 'Guest';
+
+            // --- UI Config & Merge Logic ---
+            const modes = {
+                'student': { title: 'AI DEBUGGER', sub: 'STUDENT Edition', badge: 'Student' },
+                'enterprise': { title: 'Security Shield', sub: 'Enterprise Edition', badge: 'Admin' },
+                'organisation': { title: 'Team Reviewer', sub: 'Organisation Edition', badge: 'Team' },
+                'developer': { title: 'Code Refine', sub: 'Developer Edition', badge: 'Pro' }
+            };
+
+            const config = modes[userType] || modes.developer;
+            document.getElementById('platform-title').innerText = config.title;
+            document.getElementById('platform-subtitle').innerText = config.sub;
+            document.getElementById('user-badge').innerText = config.badge;
+
+            // Conditional Features
+            if (userType === 'student') {
+                document.getElementById('student-tracking').classList.remove('hidden');
+                document.getElementById('plagiarism-badge').classList.remove('hidden');
+            }
+            if (userType === 'enterprise' || userType === 'organisation') {
+                document.getElementById('policy-upload-zone').classList.remove('hidden');
+            }
+
+            // --- API Operations ---
+
+            // 1. Image-to-Code (OCR)
+            document.getElementById('ocrFile').onchange = async (e) => {
+                const formData = new FormData();
+                formData.append('file', e.target.files[0]);
+                const res = await fetch('http://localhost:8000/api/ocr', { method: 'POST', body: formData });
+                const data = await res.json();
+                document.getElementById('codeInput').value = data.extracted_code;
+            };
+
+            // 2. Policy Upload (RAG)
+            document.getElementById('policyFile').onchange = async (e) => {
+                const formData = new FormData();
+                formData.append('file', e.target.files[0]);
+                const res = await fetch('http://localhost:8000/api/upload-policy', { method: 'POST', body: formData });
+                const data = await res.json();
+                alert(data.message);
+            };
+
+            // 3. Main Review Logic
+            const reviewBtn = document.getElementById('reviewBtn');
+            const reviewFeedback = document.getElementById('reviewFeedback');
+            const originalOutput = document.getElementById('originalCodeOutput');
+            const rewrittenOutput = document.getElementById('rewrittenCodeOutput');
+
+            async function processCode(action) {
+                const code = document.getElementById('codeInput').value;
+                if (!code.trim()) return alert("Please paste some code!");
+
+                const focusAreas = Array.from(document.querySelectorAll('input[name="focusArea"]:checked')).map(cb => cb.value);
+                const language = document.getElementById('languageSelect').value;
+                
+                originalOutput.textContent = code;
+                hljs.highlightElement(originalOutput);
+
+                if (action === 'review') {
+                    reviewFeedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Auditing as ${userType}...</div>`;
+                    
+                    try {
+                        const response = await fetch('http://localhost:8000/api/review', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: code,
+                                language: language,
+                                focus_areas: focusAreas,
+                                user_type: userType,
+                                student_name: studentName
+                            })
+                        });
+
+                        const data = await response.json();
+                        
+                        // Update Counts
+                        document.getElementById('critical-count').innerText = data.stats.critical || 0;
+                        document.getElementById('high-count').innerText = data.stats.high || 0;
+                        document.getElementById('medium-count').innerText = data.stats.medium || 0;
+                        document.getElementById('low-count').innerText = data.stats.low || 0;
+
+                        // Update Educational Metrics
+                        if (userType === 'student') {
+                            document.getElementById('plag-score').innerText = data.plagiarism;
+                            document.getElementById('review-count').innerText = data.student_stats;
+                        }
+
+                        // Render Markdown & Highlight
+                        reviewFeedback.innerHTML = marked.parse(data.review);
+                        hljs.highlightAll();
+
+                    } catch (err) {
+                        reviewFeedback.innerHTML = '<p class="text-red-400">Error connecting to backend.</p>';
+                    }
+
+                } else if (action === 'fix') {
+                    reviewFeedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Rewriting code as ${userType}...</div>`;
+                    rewrittenOutput.textContent = '';
+                    
+                    try {
+                        const response = await fetch('http://localhost:8000/api/rewrite', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: code,
+                                language: language,
+                                focus_areas: focusAreas,
+                                user_type: userType,
+                                student_name: studentName
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'API Error');
+                        }
+
+                        const data = await response.json();
+                        
+                        // Update Counts from rewrite response
+                        document.getElementById('critical-count').innerText = data.stats.critical || 0;
+                        document.getElementById('high-count').innerText = data.stats.high || 0;
+                        document.getElementById('medium-count').innerText = data.stats.medium || 0;
+                        document.getElementById('low-count').innerText = data.stats.low || 0;
+
+                        // Display rewrite review and rewritten code
+                        reviewFeedback.innerHTML = marked.parse(data.review);
+                        rewrittenOutput.textContent = data.rewritten_code || 'No rewritten code available';
+                        rewrittenOutput.className = `language-${language}`;
+                        hljs.highlightElement(rewrittenOutput);
+                        hljs.highlightAll();
+
+                    } catch (err) {
+                        reviewFeedback.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
+                        rewrittenOutput.textContent = `Error: ${err.message}`;
+                    }
+                }
+            }
+
+            document.getElementById('reviewBtn').onclick = () => processCode('review');
+            document.getElementById('fixBtn').onclick = () => processCode('fix');
+            document.getElementById('copyBtn').onclick = function() {
+                navigator.clipboard.writeText(rewrittenOutput.textContent);
+                this.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(() => this.innerHTML = '<i class="fas fa-copy"></i> Copy Code', 2000);
+            };
+        });
+    </script>
+</body>
+</html>

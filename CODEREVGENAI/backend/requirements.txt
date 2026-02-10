@@ -1,0 +1,13 @@
+fastapi==0.115.0 [cite: 111]
+uvicorn[standard]==0.30.1 [cite: 111]
+python-dotenv==1.0.0 [cite: 111]
+groq==0.13.0 [cite: 111]
+httpx==0.27.2 [cite: 111]
+python-multipart==0.0.9 [cite: 111]
+pydantic==2.5.0
+pillow==10.2.0
+pytesseract==0.3.10
+sentence-transformers==2.3.1
+faiss-cpu==1.8.0
+scikit-learn==1.4.0
+pypdf==4.0.1

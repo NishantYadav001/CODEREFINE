@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Dashboard - CodeRefine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-50 min-h-screen p-8">
+    <div class="container mx-auto max-w-4xl">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-sky-400"><i class="fas fa-chart-line mr-3"></i>Student Dashboard</h1>
+                <p class="text-slate-400">Monitoring student engagement and code integrity</p>
+            </div>
+            <a href="/app?userType=organisation" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Tool
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                <p class="text-slate-400 text-xs font-bold uppercase">Active Students</p>
+                <p id="total-students" class="text-3xl font-bold mt-2">0</p>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                <p class="text-slate-400 text-xs font-bold uppercase">Total Reviews</p>
+                <p id="total-reviews" class="text-3xl font-bold mt-2 text-purple-400">0</p>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                <p class="text-slate-400 text-xs font-bold uppercase">Plagiarism Resets</p>
+                <button onclick="resetPlag()" class="mt-2 text-sm text-red-400 hover:underline">Reset Database</button>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
+            <h3 class="text-lg font-bold mb-6 italic text-slate-500">Student Activity Analysis</h3>
+            <canvas id="activityChart" class="max-h-[400px]"></canvas>
+        </div>
+    </div>
+
+    <script>
+        async function loadDashboard() {
+            const res = await fetch('http://localhost:8000/api/dashboard-data');
+            const data = await res.json();
+
+            document.getElementById('total-students').innerText = data.labels.length;
+            document.getElementById('total-reviews').innerText = data.data.reduce((a, b) => a + b, 0);
+
+            new Chart(document.getElementById('activityChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Number of Reviews',
+                        data: data.data,
+                        backgroundColor: '#38bdf8',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#334155' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        async function resetPlag() {
+            if(confirm("Are you sure? This clears the plagiarism memory.")) {
+                await fetch('http://localhost:8000/api/reset-plagiarism', { method: 'POST' });
+                location.reload();
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
