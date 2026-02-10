@@ -64,6 +64,43 @@ class LoginRequest(BaseModel):
 
 # --- Helper Functions ---
 
+def analyze_time_complexity(code: str):
+    """Analyze and estimate time complexity of code"""
+    complexity = "O(n)"  # Default
+    
+    # Check for common patterns
+    code_lower = code.lower()
+    
+    # Check for nested loops
+    loop_count = code_lower.count('for ') + code_lower.count('while ')
+    if loop_count >= 3:
+        complexity = "O(n³)"
+    elif loop_count >= 2:
+        complexity = "O(n²)"
+    elif loop_count >= 1:
+        complexity = "O(n)"
+    
+    # Check for specific patterns
+    if 'binary search' in code_lower or 'log(' in code_lower:
+        complexity = "O(log n)"
+    if 'sorted' in code_lower or 'sort' in code_lower:
+        complexity = "O(n log n)"
+    if 'recursive' in code_lower or code_lower.count('def ') > 1:
+        # Could be exponential or linear depending on implementation
+        if 'fibonacci' in code_lower or 'factorial' in code_lower:
+            complexity = "O(2^n)"
+    if code_lower.count('.append(') > 0 or code_lower.count('.insert(') > 0:
+        # Linear operations on lists
+        pass
+    if 'hash' in code_lower or 'dict' in code_lower or '{' in code and ':' in code:
+        complexity = "O(1) avg / O(n) worst"
+    
+    # Constant time if very simple
+    if loop_count == 0 and 'if' not in code_lower and 'while' not in code_lower:
+        complexity = "O(1)"
+    
+    return complexity
+
 def parse_review_response(review_text: str):
     """Extract priority counts from AI response"""
     critical = len(re.findall(r'### Critical', review_text, re.IGNORECASE))
@@ -374,10 +411,16 @@ ORIGINAL CODE:
 
         stats = parse_review_response(review_part)
         
+        # Analyze time complexity
+        original_complexity = analyze_time_complexity(code)
+        rewritten_complexity = analyze_time_complexity(rewritten_code)
+        
         return {
             "review": review_part,
             "stats": stats,
-            "rewritten_code": rewritten_code
+            "rewritten_code": rewritten_code,
+            "time_complexity_original": original_complexity,
+            "time_complexity_rewritten": rewritten_complexity
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calling Groq API: {str(e)}")
