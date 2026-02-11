@@ -3,6 +3,7 @@ import re
 import io
 import base64
 import json
+import difflib
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
@@ -46,6 +47,9 @@ CODE_DATABASE = []
 STUDENT_STATS = {}
 ACTIVE_SESSIONS = {}
 COMPANY_POLICIES = ""
+CODE_SNIPPETS = {}  # Store user snippets
+CODE_HISTORY = {}   # Track version history
+USER_ANALYTICS = {} # Track user activities
 
 # --- Core Utility Logic ---
 
@@ -369,6 +373,268 @@ async def get_dashboard_data():
         "data": data,
         "total_students": len(STUDENT_STATS),
         "total_reviews": sum(data)
+    }
+
+# --- NEW FEATURES ENDPOINTS ---
+
+# 1. Code Diff Viewer
+@app.post("/api/diff")
+async def generate_diff(payload: dict = Body(...)):
+    """Generate diff between two code versions"""
+    original_code = payload.get("original_code", "")
+    rewritten_code = payload.get("rewritten_code", "")
+    
+    if not original_code or not rewritten_code:
+        raise HTTPException(status_code=400, detail="Both original and rewritten code required")
+    
+    diff = list(difflib.unified_diff(
+        original_code.splitlines(keepends=True),
+        rewritten_code.splitlines(keepends=True),
+        fromfile='Original',
+        tofile='Rewritten',
+        lineterm=''
+    ))
+    
+    similarity = difflib.SequenceMatcher(None, original_code, rewritten_code).ratio()
+    
+    return {
+        "diff": ''.join(diff),
+        "similarity_score": round(similarity * 100, 2),
+        "lines_changed": len([d for d in diff if d.startswith(('+', '-'))])
+    }
+
+# 2. Language Detection
+@app.post("/api/detect-language")
+async def detect_language(payload: dict = Body(...)):
+    """Auto-detect programming language from code"""
+    code = payload.get("code", "")
+    
+    patterns = {
+        "python": [r"^import\s+\w+", r"^from\s+\w+\s+import", r"def\s+\w+\s*\(", r"class\s+\w+:", r"if\s+__name__"],
+        "javascript": [r"function\s+\w+\s*\(", r"const\s+\w+\s*=", r"let\s+\w+\s*=", r"=>", r"document\.", r"console\."],
+        "java": [r"public\s+class\s+\w+", r"public\s+static\s+void", r"import\s+java\.", r"@Override"],
+        "cpp": [r"#include\s*<", r"std::", r"using\s+namespace", r"int\s+main\s*\(", r"cout\s+<<"],
+        "csharp": [r"using\s+System", r"public\s+class\s+\w+", r"namespace\s+\w+", r"static\s+void\s+Main"],
+        "go": [r"package\s+\w+", r"func\s+\w+\s*\(", r"import\s+\(", r":="],
+        "rust": [r"fn\s+\w+", r"let\s+mut\s+\w+", r"impl\s+\w+", r"pub\s+struct"],
+    }
+    
+    scores = {}
+    for lang, patterns_list in patterns.items():
+        score = sum(1 for pattern in patterns_list if re.search(pattern, code))
+        scores[lang] = score
+    
+    detected = max(scores, key=scores.get) if scores else "python"
+    return {"detected_language": detected, "confidence": round(scores.get(detected, 0) / len(patterns.get(detected, [])) * 100, 1)}
+
+# 3. Code Templates
+@app.get("/api/templates/{language}")
+async def get_templates(language: str):
+    """Get code templates for a language"""
+    templates = {
+        "python": {
+            "web_api": "from fastapi import FastAPI\n\napp = FastAPI()\n\n@app.get('/')\nasync def read_root():\n    return {'message': 'Hello World'}",
+            "data_processing": "import pandas as pd\n\ndf = pd.read_csv('data.csv')\nprint(df.head())",
+            "async": "import asyncio\n\nasync def main():\n    await asyncio.sleep(1)\n    print('Done')\n\nasyncio.run(main())",
+        },
+        "javascript": {
+            "rest_api": "const express = require('express');\nconst app = express();\n\napp.get('/', (req, res) => {\n  res.json({message: 'Hello World'});\n});\n\napp.listen(3000);",
+            "async_fetch": "async function fetchData(url) {\n  const response = await fetch(url);\n  return response.json();\n}",
+            "class": "class User {\n  constructor(name, email) {\n    this.name = name;\n    this.email = email;\n  }\n}",
+        },
+        "java": {
+            "main": "public class Main {\n  public static void main(String[] args) {\n    System.out.println(\"Hello World\");\n  }\n}",
+            "class": "public class User {\n  private String name;\n  private String email;\n}",
+        },
+    }
+    
+    lang_templates = templates.get(language, {})
+    return {"templates": lang_templates, "language": language}
+
+# 4. Unit Test Generation
+@app.post("/api/generate-tests")
+async def generate_tests(payload: dict = Body(...)):
+    """Generate unit tests for code"""
+    code = payload.get("code", "")
+    language = payload.get("language", "python")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    
+    test_prompt = f"Generate unit tests for the following {language} code. Return ONLY test code:\n\n{code}"
+    
+    try:
+        tests = get_ai_response(test_prompt, temp=0.3, max_tokens=1500)
+        return {"tests": tests, "language": language, "framework": "pytest" if language == "python" else "jest"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
+
+# 5. Documentation Generator
+@app.post("/api/generate-docs")
+async def generate_docs(payload: dict = Body(...)):
+    """Generate documentation for code"""
+    code = payload.get("code", "")
+    language = payload.get("language", "python")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    
+    doc_prompt = f"Generate comprehensive documentation and comments for the following {language} code. Format as docstrings/comments:\n\n{code}"
+    
+    try:
+        docs = get_ai_response(doc_prompt, temp=0.3, max_tokens=1500)
+        return {"documentation": docs, "language": language}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Documentation generation failed: {str(e)}")
+
+# 6. Code Security Scanner
+@app.post("/api/security-scan")
+async def security_scan(payload: dict = Body(...)):
+    """Scan code for security vulnerabilities"""
+    code = payload.get("code", "")
+    language = payload.get("language", "python")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    
+    security_prompt = f"Perform a security analysis on this {language} code. Identify vulnerabilities, security risks, and issues like SQL injection, XSS, hardcoded secrets, etc. Format as: CRITICAL: ... HIGH: ... MEDIUM: ...\n\n{code}"
+    
+    try:
+        analysis = get_ai_response(security_prompt, temp=0.2, max_tokens=1000)
+        return {"security_analysis": analysis, "language": language}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Security scan failed: {str(e)}")
+
+# 7. Refactoring Suggestions
+@app.post("/api/refactor-suggestions")
+async def refactor_suggestions(payload: dict = Body(...)):
+    """Get refactoring suggestions for code"""
+    code = payload.get("code", "")
+    language = payload.get("language", "python")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    
+    refactor_prompt = f"Suggest refactoring improvements for this {language} code. Include: extract methods, consolidate duplicates, apply design patterns, improve naming, etc. Format as bullet points:\n\n{code}"
+    
+    try:
+        suggestions = get_ai_response(refactor_prompt, temp=0.4, max_tokens=1000)
+        return {"refactoring_suggestions": suggestions, "language": language}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Refactoring suggestions failed: {str(e)}")
+
+# 8. Code Snippets Management
+@app.post("/api/snippets/save")
+async def save_snippet(payload: dict = Body(...)):
+    """Save code snippet to library"""
+    user = payload.get("user", "default")
+    title = payload.get("title", "Untitled")
+    code = payload.get("code", "")
+    language = payload.get("language", "python")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    
+    if user not in CODE_SNIPPETS:
+        CODE_SNIPPETS[user] = []
+    
+    snippet = {
+        "id": len(CODE_SNIPPETS[user]),
+        "title": title,
+        "code": code,
+        "language": language,
+        "created": datetime.now().isoformat()
+    }
+    
+    CODE_SNIPPETS[user].append(snippet)
+    return {"message": "Snippet saved", "snippet_id": snippet["id"]}
+
+@app.get("/api/snippets/{user}")
+async def get_snippets(user: str):
+    """Get user's saved snippets"""
+    snippets = CODE_SNIPPETS.get(user, [])
+    return {"snippets": snippets, "total": len(snippets)}
+
+@app.delete("/api/snippets/{user}/{snippet_id}")
+async def delete_snippet(user: str, snippet_id: int):
+    """Delete a snippet"""
+    if user in CODE_SNIPPETS and 0 <= snippet_id < len(CODE_SNIPPETS[user]):
+        CODE_SNIPPETS[user].pop(snippet_id)
+        return {"message": "Snippet deleted"}
+    raise HTTPException(status_code=404, detail="Snippet not found")
+
+# 9. Version History
+@app.post("/api/history/save")
+async def save_to_history(payload: dict = Body(...)):
+    """Save code version to history"""
+    user = payload.get("user", "default")
+    code = payload.get("code", "")
+    action = payload.get("action", "review")
+    
+    if user not in CODE_HISTORY:
+        CODE_HISTORY[user] = []
+    
+    version = {
+        "version": len(CODE_HISTORY[user]) + 1,
+        "code": code,
+        "action": action,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    CODE_HISTORY[user].append(version)
+    return {"message": "Version saved", "version": version["version"]}
+
+@app.get("/api/history/{user}")
+async def get_history(user: str):
+    """Get user's code history"""
+    history = CODE_HISTORY.get(user, [])
+    return {"history": history, "total_versions": len(history)}
+
+# 10. User Analytics
+@app.post("/api/analytics/track")
+async def track_activity(payload: dict = Body(...)):
+    """Track user activity"""
+    user = payload.get("user", "default")
+    action = payload.get("action", "review")
+    language = payload.get("language", "python")
+    
+    if user not in USER_ANALYTICS:
+        USER_ANALYTICS[user] = {"reviews": 0, "generations": 0, "languages": {}, "last_activity": ""}
+    
+    analytics = USER_ANALYTICS[user]
+    if action == "review":
+        analytics["reviews"] += 1
+    elif action == "generate":
+        analytics["generations"] += 1
+    
+    analytics["languages"][language] = analytics["languages"].get(language, 0) + 1
+    analytics["last_activity"] = datetime.now().isoformat()
+    
+    return {"message": "Activity tracked"}
+
+@app.get("/api/analytics/{user}")
+async def get_analytics(user: str):
+    """Get user analytics"""
+    analytics = USER_ANALYTICS.get(user, {})
+    return analytics
+
+@app.get("/api/analytics/dashboard/global")
+async def get_global_analytics():
+    """Get global analytics for admin dashboard"""
+    total_reviews = sum(a.get("reviews", 0) for a in USER_ANALYTICS.values())
+    total_generations = sum(a.get("generations", 0) for a in USER_ANALYTICS.values())
+    all_languages = {}
+    
+    for analytics in USER_ANALYTICS.values():
+        for lang, count in analytics.get("languages", {}).items():
+            all_languages[lang] = all_languages.get(lang, 0) + count
+    
+    return {
+        "total_users": len(USER_ANALYTICS),
+        "total_reviews": total_reviews,
+        "total_generations": total_generations,
+        "languages_used": all_languages,
+        "most_used_language": max(all_languages, key=all_languages.get) if all_languages else "N/A"
     }
 
 # --- Page Routing ---
