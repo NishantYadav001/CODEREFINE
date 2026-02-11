@@ -16,6 +16,9 @@
         .btn-primary { background: linear-gradient(to right, #2563eb, #9333ea); transition: all 0.3s; }
         .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
         .prose pre { background: transparent !important; padding: 0 !important; }
+        .mode-tab { cursor: pointer; transition: all 0.2s; }
+        .mode-tab.active { font-weight: bold; }
+        .analysis-mode, .generation-mode { transition: opacity 0.3s ease-in-out; }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-50 min-h-screen">
@@ -56,36 +59,97 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold flex items-center gap-2">
-                        <i class="fas fa-code text-sky-400"></i> Source Code
-                    </h2>
-                    <select id="languageSelect" class="bg-slate-800 border border-slate-700 rounded-md p-1.5 text-sm outline-none">
-                        <option value="python">Python</option>
-                        <option value="java">Java</option>
-                        <option value="javascript">JavaScript</option>
-                        <option value="cpp">C++</option>
-                    </select>
+                <!-- Tab Selection -->
+                <div class="flex gap-2 mb-4">
+                    <button id="modeAnalysis" class="mode-tab active px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-sky-600 border-sky-600 text-white">
+                        <i class="fas fa-microscope mr-2"></i>Analyze Code
+                    </button>
+                    <button id="modeGenerate" class="mode-tab px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-slate-700 border-slate-700 text-slate-300 hover:bg-slate-600">
+                        <i class="fas fa-sparkles mr-2"></i>Generate Code
+                    </button>
                 </div>
-                
-                <textarea id="codeInput" class="code-editor w-full h-80 p-4 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/50" placeholder="Enter your code or upload an image..."></textarea>
-                
-                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                    <p class="text-sm font-bold mb-3 text-slate-400 uppercase tracking-tighter">Analysis Focus Areas</p>
-                    <div class="flex flex-wrap gap-4 text-sm">
-                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Bugs" checked class="mr-2 accent-sky-500">Bugs</label>
-                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Performance" checked class="mr-2 accent-sky-500">Performance</label>
-                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Security" checked class="mr-2 accent-sky-500">Security</label>
-                        <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Best Practices" checked class="mr-2 accent-sky-500">Best Practices</label>
+
+                <!-- Analysis Mode -->
+                <div id="analysis-panel" class="analysis-mode space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold flex items-center gap-2">
+                            <i class="fas fa-code text-sky-400"></i> Source Code
+                        </h2>
+                        <select id="languageSelect" class="bg-slate-800 border border-slate-700 rounded-md p-1.5 text-sm outline-none">
+                            <option value="python">Python</option>
+                            <option value="java">Java</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="cpp">C++</option>
+                        </select>
+                    </div>
+                    
+                    <textarea id="codeInput" class="code-editor w-full h-80 p-4 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/50" placeholder="Enter your code or upload an image..."></textarea>
+                    
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <p class="text-sm font-bold mb-3 text-slate-400 uppercase tracking-tighter">Analysis Focus Areas</p>
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Bugs" checked class="mr-2 accent-sky-500">Bugs</label>
+                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Performance" checked class="mr-2 accent-sky-500">Performance</label>
+                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Security" checked class="mr-2 accent-sky-500">Security</label>
+                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Best Practices" checked class="mr-2 accent-sky-500">Best Practices</label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="reviewBtn" class="btn-primary font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-microscope"></i> Run Review
+                        </button>
+                        <button id="fixBtn" class="bg-slate-700 hover:bg-slate-600 font-bold py-3 px-4 rounded-xl border border-slate-600 flex items-center justify-center gap-2">
+                            <i class="fas fa-wand-magic-sparkles"></i> Auto-Rewrite
+                        </button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <button id="reviewBtn" class="btn-primary font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
-                        <i class="fas fa-microscope"></i> Run Review
-                    </button>
-                    <button id="fixBtn" class="bg-slate-700 hover:bg-slate-600 font-bold py-3 px-4 rounded-xl border border-slate-600 flex items-center justify-center gap-2">
-                        <i class="fas fa-wand-magic-sparkles"></i> Auto-Rewrite
+                <!-- Generation Mode -->
+                <div id="generation-panel" class="generation-mode hidden space-y-4">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <i class="fas fa-sparkles text-emerald-400"></i> Describe Your Code
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <label class="block text-sm font-bold text-slate-300">
+                            <i class="fas fa-lightbulb mr-2 text-yellow-400"></i>What code do you want to generate?
+                        </label>
+                        <textarea id="generationPrompt" class="code-editor w-full h-24 p-4 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/50" placeholder="Example: Create a Python function to sort an array in descending order using merge sort algorithm"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
+                                <i class="fas fa-code text-sky-400 mr-2"></i>Language
+                            </label>
+                            <select id="generationLanguage" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="java">Java</option>
+                                <option value="cpp">C++</option>
+                                <option value="csharp">C#</option>
+                                <option value="go">Go</option>
+                                <option value="rust">Rust</option>
+                                <option value="typescript">TypeScript</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
+                                <i class="fas fa-user-tie text-purple-400 mr-2"></i>Code Style
+                            </label>
+                            <select id="generationStyle" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
+                                <option value="production">Production (Optimized)</option>
+                                <option value="educational">Educational (Commented)</option>
+                                <option value="compact">Compact (Minimal)</option>
+                                <option value="verbose">Verbose (Detailed)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="generateBtn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-white transition-all transform hover:scale-[1.02] active:scale-95">
+                        <i class="fas fa-wand-magic-sparkles"></i> Generate Code
                     </button>
                 </div>
             </div>
@@ -152,12 +216,12 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="codeDisplaySection">
+                <div id="originalCodeSection">
                     <h3 class="text-sm font-bold mb-2 text-slate-500 px-2 uppercase italic">Original Input</h3>
                     <pre class="code-output rounded-xl p-4 min-h-[200px]"><code id="originalCodeOutput" class="language-python"></code></pre>
                 </div>
-                <div class="relative">
+                <div class="relative" id="generatedCodeSection">
                     <h3 class="text-sm font-bold mb-2 text-sky-400 px-2 uppercase italic">AI Rewritten Version</h3>
                      <pre class="code-output rounded-xl p-4 min-h-[200px] border-sky-900/30"><code id="rewrittenCodeOutput" class="language-python"></code></pre>
                      <div class="absolute top-10 right-4 flex gap-2">
@@ -168,6 +232,15 @@
                              <i class="fas fa-download mr-1"></i> Download Code
                          </button>
                      </div>
+                </div>
+            </div>
+
+            <!-- Generation Mode Placeholder -->
+            <div id="generationPlaceholder" class="hidden mt-8">
+                <div class="bg-gradient-to-br from-emerald-900/20 to-teal-900/20 border border-emerald-700/40 rounded-3xl p-12 text-center">
+                    <div class="text-6xl mb-4"><i class="fas fa-magic text-emerald-400"></i></div>
+                    <h3 class="text-2xl font-bold text-emerald-300 mb-2">Ready to Generate Code</h3>
+                    <p class="text-slate-400">Enter your prompt above and click "Generate Code" to create your custom code</p>
                 </div>
             </div>
 
@@ -277,6 +350,16 @@
                 const focusAreas = Array.from(document.querySelectorAll('input[name="focusArea"]:checked')).map(cb => cb.value);
                 const language = document.getElementById('languageSelect').value;
                 
+                // Restore analysis mode layout
+                const originalSection = document.getElementById('originalCodeSection');
+                const codeDisplaySection = document.getElementById('codeDisplaySection');
+                const generatedSection = document.getElementById('generatedCodeSection');
+                
+                originalSection.style.display = 'block';
+                codeDisplaySection.classList.remove('lg:grid-cols-1');
+                codeDisplaySection.classList.add('lg:grid-cols-2');
+                generatedSection.querySelector('h3').innerHTML = '<i class="fas fa-wand-magic-sparkles text-sky-400 mr-2"></i>AI Rewritten Version';
+                
                 document.getElementById('originalCodeOutput').textContent = code;
                 hljs.highlightElement(document.getElementById('originalCodeOutput'));
 
@@ -344,6 +427,135 @@
 
             document.getElementById('reviewBtn').onclick = () => processCode('review');
             document.getElementById('fixBtn').onclick = () => processCode('fix');
+            
+            // 4. Code Generation
+            document.getElementById('generateBtn').onclick = async function() {
+                const prompt = document.getElementById('generationPrompt').value.trim();
+                if (!prompt) return alert("Please describe what code you want to generate!");
+
+                const language = document.getElementById('generationLanguage').value;
+                const style = document.getElementById('generationStyle').value;
+                
+                const feedback = document.getElementById('reviewFeedback');
+                feedback.innerHTML = `<div class='animate-pulse text-emerald-400'><i class='fas fa-spinner fa-spin'></i> Generating ${language} code...</div>`;
+
+                try {
+                    const styleMap = {
+                        'production': 'Optimized production code',
+                        'educational': 'Well-commented code for learning',
+                        'compact': 'Minimal and compact code',
+                        'verbose': 'Detailed and verbose code'
+                    };
+
+                    const response = await fetch(`http://localhost:8000/api/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: `${styleMap[style]}: ${prompt}`,
+                            language: language,
+                            user_type: userType
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("Code generation failed");
+                    const data = await response.json();
+
+                    const generatedCode = data.generated_code || '';
+                    
+                    // Show code display section and hide placeholder
+                    const codeDisplaySection = document.getElementById('codeDisplaySection');
+                    const generationPlaceholder = document.getElementById('generationPlaceholder');
+                    
+                    generationPlaceholder.classList.add('hidden');
+                    codeDisplaySection.classList.remove('hidden');
+                    
+                    // Adjust layout for generation
+                    const originalSection = document.getElementById('originalCodeSection');
+                    originalSection.style.display = 'none';
+                    codeDisplaySection.classList.remove('lg:grid-cols-2');
+                    codeDisplaySection.classList.add('lg:grid-cols-1');
+                    
+                    // Update the generated code section header
+                    const generatedSection = document.getElementById('generatedCodeSection');
+                    generatedSection.querySelector('h3').innerHTML = '<i class="fas fa-sparkles text-emerald-400 mr-2"></i>Generated Code';
+                    
+                    // Display generated code
+                    const codeElement = document.getElementById('rewrittenCodeOutput');
+                    codeElement.textContent = generatedCode;
+                    codeElement.className = `language-${language}`;
+                    hljs.highlightElement(codeElement);
+
+                    // Hide complexity section for generation mode
+                    document.getElementById('complexity-section').classList.add('hidden');
+
+                    feedback.innerHTML = `<div class='bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4 mb-4'>
+                        <p class='text-emerald-400 font-bold'><i class='fas fa-check-circle mr-2'></i>Code Generated Successfully!</p>
+                        <p class='text-emerald-300 text-sm mt-1'>Language: <strong>${language.toUpperCase()}</strong> | Style: <strong>${style}</strong></p>
+                    </div>`;
+
+                    document.getElementById('download-section').classList.remove('hidden');
+                    document.getElementById('downloadCodeBtn').classList.remove('hidden');
+
+                    // Save for downloads
+                    window.downloadData = {
+                        code: generatedCode,
+                        review: `Generated ${language} code\n\nPrompt: ${prompt}`,
+                        language: language,
+                        originalCode: generatedCode,
+                        stats: { critical: 0, high: 0, medium: 0, low: 0 },
+                        complexity_original: "Fresh",
+                        complexity_rewritten: generatedCode ? "Generated" : "N/A"
+                    };
+
+                    // Update copy button for generated code
+                    document.getElementById('copyBtn').onclick = function() {
+                        navigator.clipboard.writeText(generatedCode);
+                        this.innerHTML = '<i class="fas fa-check"></i> Copied';
+                        setTimeout(() => this.innerHTML = '<i class="fas fa-copy"></i> Copy Code', 2000);
+                    };
+
+                    hljs.highlightAll();
+                } catch (err) {
+                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
+                }
+            };
+
+            // Mode Switching
+            document.getElementById('modeAnalysis').onclick = function() {
+                document.getElementById('analysis-panel').classList.remove('hidden');
+                document.getElementById('generation-panel').classList.add('hidden');
+                this.classList.add('active', 'bg-sky-600', 'border-sky-600', 'text-white');
+                this.classList.remove('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                document.getElementById('modeGenerate').classList.remove('active', 'bg-sky-600', 'border-sky-600', 'text-white');
+                document.getElementById('modeGenerate').classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                
+                // Reset code display for analysis mode
+                document.getElementById('originalCodeSection').style.display = 'block';
+                const codeDisplaySection = document.getElementById('codeDisplaySection');
+                codeDisplaySection.classList.remove('lg:grid-cols-1');
+                codeDisplaySection.classList.add('lg:grid-cols-2');
+                document.getElementById('generatedCodeSection').querySelector('h3').innerHTML = '<i class="fas fa-wand-magic-sparkles text-sky-400 mr-2"></i>AI Rewritten Version';
+                
+                // Show code display, hide placeholder
+                codeDisplaySection.classList.remove('hidden');
+                document.getElementById('generationPlaceholder').classList.add('hidden');
+            };
+
+            document.getElementById('modeGenerate').onclick = function() {
+                document.getElementById('generation-panel').classList.remove('hidden');
+                document.getElementById('analysis-panel').classList.add('hidden');
+                this.classList.add('active', 'bg-emerald-600', 'border-emerald-600', 'text-white');
+                this.classList.remove('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                document.getElementById('modeAnalysis').classList.remove('active', 'bg-sky-600', 'border-sky-600', 'text-white');
+                document.getElementById('modeAnalysis').classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                
+                // Clear previous results
+                document.getElementById('reviewFeedback').innerHTML = '<p class="italic text-slate-500">Enter a prompt and generate code...</p>';
+                
+                // Hide code display, show placeholder for generation mode
+                document.getElementById('codeDisplaySection').classList.add('hidden');
+                document.getElementById('generationPlaceholder').classList.remove('hidden');
+            };
             
             // Helpers
             document.getElementById('copyBtn').onclick = function() {
