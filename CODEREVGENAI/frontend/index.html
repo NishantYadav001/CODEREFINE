@@ -130,7 +130,6 @@
         <div class="mt-12 bg-slate-800/30 p-6 rounded-3xl border border-slate-800">
             <h2 class="text-xl font-bold mb-6 text-center text-slate-400 uppercase tracking-widest">Code Transformation & Analysis</h2>
             
-            <!-- Complexity Analysis Section -->
             <div id="complexity-section" class="hidden mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-slate-700/50 p-5 rounded-2xl border border-orange-700/30">
                     <h3 class="text-sm font-bold text-orange-400 mb-4 uppercase tracking-wide flex items-center gap-2">
@@ -153,7 +152,6 @@
                 </div>
             </div>
 
-            <!-- Code Transformation Section -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                     <h3 class="text-sm font-bold mb-2 text-slate-500 px-2 uppercase italic">Original Input</h3>
@@ -173,13 +171,11 @@
                 </div>
             </div>
 
-            <!-- Download Section -->
             <div id="download-section" class="hidden mt-8 pt-8 border-t border-slate-700">
                 <h3 class="text-lg font-bold mb-4 text-slate-400 uppercase tracking-wide flex items-center gap-2">
                     <i class="fas fa-file-download"></i> Export & Share
                 </h3>
                 
-                <!-- Format Selection -->
                 <div class="mb-4 flex items-center gap-3 bg-slate-700/30 p-3 rounded-lg">
                     <span class="text-sm font-bold text-slate-400">Download Format:</span>
                     <div class="flex gap-2">
@@ -224,10 +220,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
+            // Matches backend expectations
             const userType = params.get('userType') || 'developer';
-            const studentName = params.get('email') || 'Guest';
+            const studentName = params.get('email') || params.get('username') || 'Guest';
 
-            // --- UI Config & Merge Logic ---
             const modes = {
                 'student': { title: 'AI DEBUGGER', sub: 'STUDENT Edition', badge: 'Student' },
                 'enterprise': { title: 'Security Shield', sub: 'Enterprise Edition', badge: 'Admin' },
@@ -240,7 +236,6 @@
             document.getElementById('platform-subtitle').innerText = config.sub;
             document.getElementById('user-badge').innerText = config.badge;
 
-            // Conditional Features
             if (userType === 'student') {
                 document.getElementById('student-tracking').classList.remove('hidden');
                 document.getElementById('plagiarism-badge').classList.remove('hidden');
@@ -249,54 +244,32 @@
                 document.getElementById('policy-upload-zone').classList.remove('hidden');
             }
 
-            // --- API Operations ---
-
-            // 1. Image-to-Code (OCR)
+            // 1. OCR
             document.getElementById('ocrFile').onchange = async (e) => {
-                try {
-                    if (!e.target.files[0]) return;
-                    
-                    const formData = new FormData();
-                    formData.append('file', e.target.files[0]);
-                    
-                    const res = await fetch('http://localhost:8000/api/ocr', { 
-                        method: 'POST', 
-                        body: formData 
-                    });
-                    
-                    if (!res.ok) {
-                        const errorData = await res.json();
-                        alert(`OCR Error: ${errorData.detail || 'Failed to extract code from image'}`);
-                        return;
-                    }
-                    
-                    const data = await res.json();
-                    if (data.extracted_code) {
-                        document.getElementById('codeInput').value = data.extracted_code;
-                        alert('Code extracted successfully from image!');
-                    } else {
-                        alert('No code found in the image. Please upload a clearer image.');
-                    }
-                } catch (err) {
-                    alert(`Error processing image: ${err.message}`);
-                }
-            };
-
-            // 2. Policy Upload (RAG)
-            document.getElementById('policyFile').onchange = async (e) => {
+                if (!e.target.files[0]) return;
                 const formData = new FormData();
                 formData.append('file', e.target.files[0]);
-                const res = await fetch('http://localhost:8000/api/upload-policy', { method: 'POST', body: formData });
-                const data = await res.json();
-                alert(data.message);
+                try {
+                    const res = await fetch('http://localhost:8000/api/ocr', { method: 'POST', body: formData });
+                    if (!res.ok) throw new Error("OCR Failed");
+                    const data = await res.json();
+                    document.getElementById('codeInput').value = data.extracted_code;
+                } catch (err) { alert(err.message); }
             };
 
-            // 3. Main Review Logic
-            const reviewBtn = document.getElementById('reviewBtn');
-            const reviewFeedback = document.getElementById('reviewFeedback');
-            const originalOutput = document.getElementById('originalCodeOutput');
-            const rewrittenOutput = document.getElementById('rewrittenCodeOutput');
+            // 2. Policy RAG
+            document.getElementById('policyFile').onchange = async (e) => {
+                if (!e.target.files[0]) return;
+                const formData = new FormData();
+                formData.append('file', e.target.files[0]);
+                try {
+                    const res = await fetch('http://localhost:8000/api/upload-policy', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    alert(data.message);
+                } catch (err) { alert("Upload failed"); }
+            };
 
+            // 3. Process Code (Review/Fix)
             async function processCode(action) {
                 const code = document.getElementById('codeInput').value;
                 if (!code.trim()) return alert("Please paste some code!");
@@ -304,256 +277,123 @@
                 const focusAreas = Array.from(document.querySelectorAll('input[name="focusArea"]:checked')).map(cb => cb.value);
                 const language = document.getElementById('languageSelect').value;
                 
-                originalOutput.textContent = code;
-                hljs.highlightElement(originalOutput);
+                document.getElementById('originalCodeOutput').textContent = code;
+                hljs.highlightElement(document.getElementById('originalCodeOutput'));
 
-                if (action === 'review') {
-                    reviewFeedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Auditing as ${userType}...</div>`;
-                    
-                    try {
-                        const response = await fetch('http://localhost:8000/api/review', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                code: code,
-                                language: language,
-                                focus_areas: focusAreas,
-                                user_type: userType,
-                                student_name: studentName
-                            })
-                        });
+                const feedback = document.getElementById('reviewFeedback');
+                feedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Processing as ${userType}...</div>`;
 
-                        const data = await response.json();
-                        
-                        // Update Counts
-                        document.getElementById('critical-count').innerText = data.stats.critical || 0;
-                        document.getElementById('high-count').innerText = data.stats.high || 0;
-                        document.getElementById('medium-count').innerText = data.stats.medium || 0;
-                        document.getElementById('low-count').innerText = data.stats.low || 0;
+                try {
+                    const endpoint = action === 'review' ? 'review' : 'rewrite';
+                    const response = await fetch(`http://localhost:8000/api/${endpoint}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: code,
+                            language: language,
+                            user_type: userType,
+                            student_name: studentName,
+                            focus_areas: focusAreas
+                        })
+                    });
 
-                        // Update Educational Metrics
-                        if (userType === 'student') {
-                            document.getElementById('plag-score').innerText = data.plagiarism;
-                            document.getElementById('review-count').innerText = data.student_stats;
-                        }
+                    if (!response.ok) throw new Error("Server Error");
+                    const data = await response.json();
 
-                        // Render Markdown & Highlight
-                        reviewFeedback.innerHTML = marked.parse(data.review);
-                        hljs.highlightAll();
+                    // Update UI Counts
+                    document.getElementById('critical-count').innerText = data.stats.critical || 0;
+                    document.getElementById('high-count').innerText = data.stats.high || 0;
+                    document.getElementById('medium-count').innerText = data.stats.medium || 0;
+                    document.getElementById('low-count').innerText = data.stats.low || 0;
 
-                    } catch (err) {
-                        reviewFeedback.innerHTML = '<p class="text-red-400">Error connecting to backend.</p>';
+                    if (userType === 'student') {
+                        document.getElementById('plag-score').innerText = data.plagiarism || "0%";
+                        document.getElementById('review-count').innerText = data.student_stats || 0;
                     }
 
-                } else if (action === 'fix') {
-                    reviewFeedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Rewriting code as ${userType}...</div>`;
-                    rewrittenOutput.textContent = '';
+                    feedback.innerHTML = marked.parse(data.review);
                     
-                    try {
-                        const response = await fetch('http://localhost:8000/api/rewrite', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                code: code,
-                                language: language,
-                                focus_areas: focusAreas,
-                                user_type: userType,
-                                student_name: studentName
-                            })
-                        });
-
-                        if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.detail || 'API Error');
-                        }
-
-                        const data = await response.json();
+                    if (action === 'fix') {
+                        const rwOut = document.getElementById('rewrittenCodeOutput');
+                        rwOut.textContent = data.rewritten_code;
+                        hljs.highlightElement(rwOut);
                         
-                        // Update Counts from rewrite response
-                        document.getElementById('critical-count').innerText = data.stats.critical || 0;
-                        document.getElementById('high-count').innerText = data.stats.high || 0;
-                        document.getElementById('medium-count').innerText = data.stats.medium || 0;
-                        document.getElementById('low-count').innerText = data.stats.low || 0;
-
-                        // Display rewrite review and rewritten code
-                        reviewFeedback.innerHTML = marked.parse(data.review);
-                        rewrittenOutput.textContent = data.rewritten_code || 'No rewritten code available';
-                        rewrittenOutput.className = `language-${language}`;
-                        hljs.highlightElement(rewrittenOutput);
-                        hljs.highlightAll();
-
-                        // Display time complexity analysis in dedicated section
-                        if (data.time_complexity_original || data.time_complexity_rewritten) {
-                            document.getElementById('complexity-section').classList.remove('hidden');
-                            if (data.time_complexity_original) {
-                                document.getElementById('original-complexity-display').innerText = data.time_complexity_original;
-                            }
-                            if (data.time_complexity_rewritten) {
-                                document.getElementById('rewritten-complexity-display').innerText = data.time_complexity_rewritten;
-                            }
-                        }
-
-                        // Show download section and store data for download
+                        document.getElementById('complexity-section').classList.remove('hidden');
+                        document.getElementById('original-complexity-display').innerText = data.time_complexity_original || "O(n)";
+                        document.getElementById('rewritten-complexity-display').innerText = data.time_complexity_rewritten || "O(n)";
+                        
                         document.getElementById('download-section').classList.remove('hidden');
+                        document.getElementById('downloadCodeBtn').classList.remove('hidden');
+
+                        // Save data for downloads
                         window.downloadData = {
                             code: data.rewritten_code,
                             review: data.review,
                             language: language,
                             originalCode: code,
                             stats: data.stats,
-                            complexity_original: data.time_complexity_original,
-                            complexity_rewritten: data.time_complexity_rewritten
+                            complexity_original: data.time_complexity_original || "O(n)",
+                            complexity_rewritten: data.time_complexity_rewritten || "O(n)"
                         };
-                        document.getElementById('downloadCodeBtn').classList.remove('hidden');
-
-                    } catch (err) {
-                        reviewFeedback.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
-                        rewrittenOutput.textContent = `Error: ${err.message}`;
                     }
+                    hljs.highlightAll();
+                } catch (err) {
+                    feedback.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
                 }
-            }
-
-            // Download Functions
-            function downloadFile(content, filename, mimeType = 'text/plain') {
-                const blob = new Blob([content], { type: mimeType });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }
-
-            function getSelectedFormat() {
-                return document.querySelector('input[name="downloadFormat"]:checked').value || 'docx';
             }
 
             document.getElementById('reviewBtn').onclick = () => processCode('review');
             document.getElementById('fixBtn').onclick = () => processCode('fix');
+            
+            // Helpers
             document.getElementById('copyBtn').onclick = function() {
-                navigator.clipboard.writeText(rewrittenOutput.textContent);
+                const text = document.getElementById('rewrittenCodeOutput').textContent;
+                navigator.clipboard.writeText(text);
                 this.innerHTML = '<i class="fas fa-check"></i> Copied';
                 setTimeout(() => this.innerHTML = '<i class="fas fa-copy"></i> Copy Code', 2000);
             };
 
-            // Download Code File
+            // Download Logic
+            const triggerDownload = (blob, filename) => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click();
+                window.URL.revokeObjectURL(url); a.remove();
+            };
+
             document.getElementById('downloadCodeFileBtn').onclick = function() {
-                if (!window.downloadData) return alert('Please run Auto-Rewrite first');
-                const ext = window.downloadData.language === 'python' ? 'py' : 
-                           window.downloadData.language === 'java' ? 'java' :
-                           window.downloadData.language === 'javascript' ? 'js' : 'txt';
-                downloadFile(window.downloadData.code, `refactored_code.${ext}`, 'text/plain');
-                this.innerHTML = '<i class="fas fa-check"></i> Downloaded';
-                setTimeout(() => this.innerHTML = '<i class="fas fa-download mr-1"></i> Download Code', 2000);
+                if (!window.downloadData) return alert('Run Auto-Rewrite first');
+                const extMap = { 'python': 'py', 'java': 'java', 'javascript': 'js', 'cpp': 'cpp' };
+                const ext = extMap[window.downloadData.language] || 'txt';
+                const blob = new Blob([window.downloadData.code], { type: 'text/plain' });
+                triggerDownload(blob, `refactored_code.${ext}`);
             };
 
-            // Download Summary (PDF/DOCX)
             document.getElementById('downloadSummaryBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Please run Auto-Rewrite first');
-                
-                const format = getSelectedFormat();
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-                this.disabled = true;
-                
-                try {
-                    const response = await fetch('http://localhost:8000/api/download/summary', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            format: format,
-                            review: window.downloadData.review,
-                            stats: window.downloadData.stats
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.detail);
-                    }
-                    
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `code_review_summary.${format}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    this.innerHTML = '<i class="fas fa-check"></i> Downloaded';
-                    setTimeout(() => {
-                        this.innerHTML = '<i class="fas fa-file-alt"></i> Download Summary';
-                        this.disabled = false;
-                    }, 2000);
-                } catch (err) {
-                    alert(`Error: ${err.message}`);
-                    this.innerHTML = '<i class="fas fa-file-alt"></i> Download Summary';
-                    this.disabled = false;
-                }
+                if (!window.downloadData) return alert('Run Auto-Rewrite first');
+                const format = document.querySelector('input[name="downloadFormat"]:checked').value;
+                const res = await fetch('http://localhost:8000/api/download/summary', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ format, review: window.downloadData.review, stats: window.downloadData.stats })
+                });
+                if (res.ok) triggerDownload(await res.blob(), `summary.${format}`);
             };
 
-            // Download Report (PDF/DOCX)
             document.getElementById('downloadReportBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Please run Auto-Rewrite first');
-                
-                const format = getSelectedFormat();
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-                this.disabled = true;
-                
-                try {
-                    const response = await fetch('http://localhost:8000/api/download/report', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            format: format,
-                            review: window.downloadData.review,
-                            stats: window.downloadData.stats,
-                            original_code: window.downloadData.originalCode,
-                            rewritten_code: window.downloadData.code,
-                            language: window.downloadData.language,
-                            complexity_original: window.downloadData.complexity_original,
-                            complexity_rewritten: window.downloadData.complexity_rewritten
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.detail);
-                    }
-                    
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `code_refine_report.${format}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    this.innerHTML = '<i class="fas fa-check"></i> Downloaded';
-                    setTimeout(() => {
-                        this.innerHTML = '<i class="fas fa-file-pdf"></i> Download Report';
-                        this.disabled = false;
-                    }, 2000);
-                } catch (err) {
-                    alert(`Error: ${err.message}`);
-                    this.innerHTML = '<i class="fas fa-file-pdf"></i> Download Report';
-                    this.disabled = false;
-                }
-            };
-
-            document.getElementById('downloadCodeBtn').onclick = function() {
-                if (!window.downloadData) return alert('Please run Auto-Rewrite first');
-                const ext = window.downloadData.language === 'python' ? 'py' : 
-                           window.downloadData.language === 'java' ? 'java' :
-                           window.downloadData.language === 'javascript' ? 'js' : 'txt';
-                downloadFile(window.downloadData.code, `refactored_code.${ext}`, 'text/plain');
-                this.innerHTML = '<i class="fas fa-check"></i> Downloaded';
-                setTimeout(() => this.innerHTML = '<i class="fas fa-download mr-1"></i> Download Code', 2000);
+                if (!window.downloadData) return alert('Run Auto-Rewrite first');
+                const format = document.querySelector('input[name="downloadFormat"]:checked').value;
+                const res = await fetch('http://localhost:8000/api/download/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        format, ...window.downloadData,
+                        original_code: window.downloadData.originalCode,
+                        rewritten_code: window.downloadData.code
+                    })
+                });
+                if (res.ok) triggerDownload(await res.blob(), `report.${format}`);
             };
         });
     </script>
