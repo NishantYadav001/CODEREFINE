@@ -91,9 +91,9 @@ def get_db_connection():
         return None
     try:
         connection = mysql.connector.connect(
-            host=os.getenv("DB_HOST", "localhost"),
+            host=os.getenv("DB_HOST", "127.0.0.1"),
             user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
+            password=os.getenv("DB_PASSWORD", "root"),
             database=os.getenv("DB_NAME", "coderefine")
         )
         if connection.is_connected():
@@ -101,6 +101,38 @@ def get_db_connection():
     except Error as e:
         print(f"Database Warning: {e} (Using in-memory fallback)")
     return None
+
+def init_db():
+    """Initialize database tables"""
+    if not DB_AVAILABLE:
+        return
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL UNIQUE,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role VARCHAR(50) DEFAULT 'user',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+            print("✅ Database initialized: 'users' table ready")
+        except Error as e:
+            print(f"❌ Database Initialization Error: {e}")
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
+@app.on_event("startup")
+async def startup_event():
+    if DB_AVAILABLE:
+        init_db()
 
 # --- Core Utility Logic ---
 
@@ -255,8 +287,8 @@ async def process_code(payload: dict = Body(...)):
 @app.post("/api/login")
 async def login(payload: dict = Body(...)):
     """Simple authentication - demo users"""
-    username = payload.get("username", " ")
-    password = payload.get("password", " ")
+    username_input = payload.get("username", "").strip()
+    password = payload.get("password", "").strip()
     
     user_data = None
     
@@ -265,7 +297,8 @@ async def login(payload: dict = Body(...)):
     if conn:
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM users WHERE username = %s AND password_hash = %s", (username, password))
+            # Allow login by username OR email
+            cursor.execute("SELECT * FROM users WHERE (username = %s OR email = %s) AND password_hash = %s", (username_input, username_input, password))
             user_data = cursor.fetchone()
         finally:
             if conn.is_connected():
@@ -274,13 +307,21 @@ async def login(payload: dict = Body(...)):
     
     # Fallback to In-Memory
     if not user_data:
-        user_record = USER_DB.get(username)
+        user_record = USER_DB.get(username_input)
         if user_record and user_record["password"] == password:
-            user_data = {"username": username, "email": user_record["email"], "role": "admin" if username == "admin" else "user"}
+            user_data = {"username": username_input, "email": user_record["email"], "role": "admin" if username_input == "admin" else "user"}
+        
+        # Check if input matches email in USER_DB
+        if not user_data:
+            for u, data in USER_DB.items():
+                if data.get("email") == username_input and data["password"] == password:
+                    user_data = {"username": u, "email": data["email"], "role": "admin" if u == "admin" else "user"}
+                    break
 
     if not user_data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    username = user_data["username"]
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
     ACTIVE_SESSIONS[token] = {"username": username, "role": user_data.get("role", "user"), "email": user_data.get("email")}
     
