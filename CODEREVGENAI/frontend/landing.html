@@ -23,11 +23,11 @@
             --border-color: #e5e7eb;
         }
         /* Theme Overrides */
-        .bg-gray-900, .bg-gray-950 { background-color: var(--bg-primary) !important; }
-        .bg-gray-800 { background-color: var(--bg-secondary) !important; }
+        .bg-gray-900, .bg-gray-950, .bg-slate-900 { background-color: var(--bg-primary) !important; }
+        .bg-gray-800, .bg-slate-800 { background-color: var(--bg-secondary) !important; }
         .text-white { color: var(--text-primary) !important; }
         .text-gray-300, .text-gray-400, .text-gray-500 { color: var(--text-secondary) !important; }
-        .border-gray-700, .border-gray-800 { border-color: var(--border-color) !important; }
+        .border-gray-700, .border-gray-800, .border-slate-700 { border-color: var(--border-color) !important; }
         
         body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
         nav { background-color: transparent !important; }
@@ -36,7 +36,7 @@
         input { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
     </style>
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="bg-slate-900 text-white font-sans">
 
     <!-- Navbar -->
     <nav class="container mx-auto p-6 flex justify-between items-center">
@@ -72,21 +72,21 @@
     </header>
 
     <!-- Features Grid -->
-    <section id="features" class="bg-gray-800 py-16">
+    <section id="features" class="bg-slate-800 py-16">
         <div class="container mx-auto px-6">
             <h2 class="text-3xl font-bold text-center mb-12">Why Choose Code Refine?</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="p-6 bg-gray-900 rounded-xl border border-gray-700 hover:border-blue-500 transition-colors">
+                <div class="p-6 bg-slate-900 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors">
                     <i class="fas fa-robot text-blue-400 text-4xl mb-4"></i>
                     <h3 class="text-xl font-bold mb-2">AI-Driven Insights</h3>
                     <p class="text-gray-400">Leverage Llama 3 and Mixtral models to detect bugs and optimize logic instantly.</p>
                 </div>
-                <div class="p-6 bg-gray-900 rounded-xl border border-gray-700 hover:border-green-500 transition-colors">
+                <div class="p-6 bg-slate-900 rounded-xl border border-slate-700 hover:border-green-500 transition-colors">
                     <i class="fas fa-shield-alt text-green-400 text-4xl mb-4"></i>
                     <h3 class="text-xl font-bold mb-2">Security First</h3>
                     <p class="text-gray-400">Automated OWASP vulnerability scanning to keep your applications secure.</p>
                 </div>
-                <div class="p-6 bg-gray-900 rounded-xl border border-gray-700 hover:border-purple-500 transition-colors">
+                <div class="p-6 bg-slate-900 rounded-xl border border-slate-700 hover:border-purple-500 transition-colors">
                     <i class="fas fa-users text-purple-400 text-4xl mb-4"></i>
                     <h3 class="text-xl font-bold mb-2">Real-time Collaboration</h3>
                     <p class="text-gray-400">Code together with your team using our live WebSocket-powered editor.</p>
@@ -97,12 +97,12 @@
 
     <!-- Newsletter -->
     <section class="container mx-auto px-6 py-16 text-center">
-        <div class="max-w-2xl mx-auto bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border border-gray-700">
+        <div class="max-w-2xl mx-auto bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-700">
             <h2 class="text-2xl font-bold mb-4">Stay Updated</h2>
             <p class="text-gray-400 mb-6">Join our newsletter to get the latest features and coding tips.</p>
             <form id="newsletter-form" class="flex flex-col md:flex-row gap-4">
                 <input type="email" id="email" placeholder="Enter your email" required 
-                    class="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500">
+                    class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold transition-colors">
                     Subscribe
                 </button>
@@ -112,7 +112,7 @@
     </section>
 
     <!-- Footer -->
-    <footer class="border-t border-gray-800 py-8 text-center text-gray-500">
+    <footer class="border-t border-slate-800 py-8 text-center text-gray-500">
         <p>&copy; 2026 Code Refine AI. All rights reserved.</p>
     </footer>
 

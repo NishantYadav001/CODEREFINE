@@ -205,7 +205,7 @@
                     <i class="fas fa-keyboard text-slate-400"></i>
                 </button>
                 <span id="user-badge" class="px-3 py-1 rounded-full bg-slate-700 text-xs font-bold border border-slate-600">Standard</span>
-                <a href="/" class="text-slate-400 hover:text-white transition-colors"><i class="fas fa-sign-out-alt"></i></a>
+                <button onclick="logout()" class="text-slate-400 hover:text-white transition-colors" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </div>
     </nav>
@@ -282,8 +282,11 @@
                                 <span class="text-xs font-bold text-slate-300">Code Editor</span>
                             </div>
                             <div class="flex gap-1 flex-wrap justify-end">
+                                <!-- Analysis Buttons -->
                                 <button id="reviewBtn" class="px-2 py-1 text-xs font-bold text-sky-400 hover:text-white hover:bg-sky-600 rounded transition-colors mr-1" title="Run Review (Ctrl+Enter)"><i class="fas fa-microscope mr-1"></i> Review</button>
                                 <button id="fixBtn" class="px-2 py-1 text-xs font-bold text-yellow-400 hover:text-white hover:bg-yellow-600 rounded transition-colors mr-1" title="Auto-Rewrite"><i class="fas fa-wand-magic-sparkles mr-1"></i> Fix</button>
+                                
+                                <!-- Shared Buttons -->
                                 <button id="runCodeBtn" class="px-2 py-1 text-xs font-bold text-emerald-400 hover:text-white hover:bg-emerald-600 rounded transition-colors mr-1" title="Run Code"><i class="fas fa-play mr-1"></i> Run</button>
                                 <button id="visualizeBtn" class="px-2 py-1 text-xs font-bold text-purple-400 hover:text-white hover:bg-purple-600 rounded transition-colors mr-2" title="Visualize Logic"><i class="fas fa-project-diagram mr-1"></i> Viz</button>
                                 <div class="w-px h-4 bg-slate-700 mx-1 self-center hidden sm:block"></div>
@@ -332,94 +335,6 @@
                             <div id="mermaidOutput" class="bg-white/5 p-4 rounded-xl overflow-x-auto flex justify-center min-h-[200px]"></div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Generation Mode -->
-                <div id="generation-panel" class="generation-mode hidden space-y-4">
-                    <h2 class="text-lg font-semibold flex items-center gap-2">
-                        <i class="fas fa-sparkles text-emerald-400"></i> Describe Your Code
-                    </h2>
-                    
-                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
-                            <i class="fas fa-brain text-emerald-400 mr-2"></i>AI Model
-                        </label>
-                        <select id="modelSelectorGeneration" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/50">
-                            <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
-                            <option value="llama-3.1-405b">🦙 Llama 3.1 405B (Most Accurate)</option>
-                            <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B (Fastest)</option>
-                            <option value="gemini-pro">✨ Gemini Pro (Google)</option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-3">
-                        <label class="block text-sm font-bold text-slate-300">
-                            <i class="fas fa-lightbulb mr-2 text-yellow-400"></i>What code do you want to generate?
-                        </label>
-                        <div class="relative">
-                            <textarea id="generationPrompt" class="code-editor w-full h-24 p-4 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/50" placeholder="Example: Create a Python function to sort an array in descending order using merge sort algorithm"></textarea>
-                            <button id="voiceBtn" class="absolute bottom-3 right-3 text-slate-400 hover:text-emerald-400 transition-colors p-2" title="Speak Prompt">
-                                <i class="fas fa-microphone"></i>
-                            </button>
-                        </div>
-                        <div id="quickPrompts" class="flex flex-wrap gap-2 mt-2">
-                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">Create REST API (Python)</button>
-                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">React Component</button>
-                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">SQL Complex Query</button>
-                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">Regex Pattern</button>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                <i class="fas fa-code text-emerald-400 mr-2"></i>Language
-                            </label>
-                            <select id="generationLanguage" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
-                                <option value="python">Python</option>
-                                <option value="javascript">JavaScript</option>
-                                <option value="java">Java</option>
-                                <option value="cpp">C++</option>
-                                <option value="csharp">C#</option>
-                                <option value="go">Go</option>
-                                <option value="rust">Rust</option>
-                                <option value="typescript">TypeScript</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                <i class="fas fa-layer-group text-pink-400 mr-2"></i>Framework
-                            </label>
-                            <select id="generationFramework" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
-                                <option value="none">None / Standard Library</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                <i class="fas fa-user-tie text-purple-400 mr-2"></i>Code Style
-                            </label>
-                            <select id="generationStyle" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
-                                <option value="production">Production (Optimized)</option>
-                                <option value="educational">Educational (Commented)</option>
-                                <option value="compact">Compact (Minimal)</option>
-                                <option value="verbose">Verbose (Detailed)</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                        <input type="checkbox" id="includeContext" class="accent-emerald-500 w-5 h-5 cursor-pointer rounded">
-                        <label for="includeContext" class="cursor-pointer">
-                            <div class="text-sm font-bold text-slate-300">Include Editor Context</div>
-                            <div class="text-[10px] text-slate-500">Send code currently in the editor to help the AI understand your project structure.</div>
-                        </label>
-                    </div>
-
-                    <button id="generateBtn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-white transition-all transform hover:scale-[1.02] active:scale-95">
-                        <i class="fas fa-wand-magic-sparkles"></i> Generate Code
-                    </button>
                 </div>
 
             <!-- Right Panel (Output/Chat) -->
@@ -801,6 +716,13 @@
                 const userType = params.get('userType') || 'developer';
                 const studentName = params.get('email') || params.get('username') || 'Guest';
 
+                // Security Check
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                if (!token && studentName !== 'Guest') {
+                    window.location.href = '/login';
+                    return;
+                }
+
                 const modes = {
                     'student': { title: 'AI DEBUGGER', sub: 'STUDENT Edition', badge: 'Student' },
                     'enterprise': { title: 'Security Shield', sub: 'Enterprise Edition', badge: 'Admin' },
@@ -1083,9 +1005,8 @@
                     const lang = window.monacoEditor.getModel().getLanguageId();
 
                     try {
-                        let formatted = code;
+                        // Fallback to Prettier (Client)
                         let parser = null;
-
                         if (lang === 'javascript' || lang === 'typescript') parser = 'babel';
                         else if (lang === 'html') parser = 'html';
                         else if (lang === 'css') parser = 'css';
@@ -1740,14 +1661,12 @@
                     const btnAnalysis = document.getElementById('modeAnalysis');
                     const btnGenerate = document.getElementById('modeGenerate');
                     
-                    const toolsAnalysis = document.getElementById('analysis-tools');
-                    const toolsGeneration = document.getElementById('generation-tools');
-                    
                     const setActive = (btn) => {
                         [btnAnalysis, btnGenerate].forEach(b => {
                             if (b) {
                                 b.classList.remove('active', 'bg-sky-600', 'border-sky-600', 'bg-emerald-600', 'border-emerald-600', 'text-white');
                                 b.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                                b.classList.remove('hidden'); // Reset visibility
                             }
                         });
                         if (btn) {
@@ -1761,8 +1680,6 @@
                     if (btnAnalysis) {
                         btnAnalysis.addEventListener('click', (e) => {
                             if(e) e.preventDefault();
-                            if (toolsAnalysis) toolsAnalysis.classList.remove('hidden');
-                            if (toolsGeneration) toolsGeneration.classList.add('hidden');
                             setActive(btnAnalysis);
                         });
                     }
@@ -2079,6 +1996,13 @@
                 if (rBtn) rBtn.title = "Run Review (Ctrl+Enter)";
                 const gBtn = get('generateBtn');
                 if (gBtn) gBtn.title = "Generate Code (Ctrl+G)";
+
+                // Logout Function
+                window.logout = function() {
+                    localStorage.removeItem('token');
+                    sessionStorage.removeItem('token');
+                    window.location.href = '/login';
+                };
 
                 console.log("✅ Code Refine: Initialization Complete");
 

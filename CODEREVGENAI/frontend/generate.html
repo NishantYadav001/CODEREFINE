@@ -89,6 +89,16 @@
                 <!-- Left Panel: Controls & Input -->
                 <div class="w-full lg:w-1/3 flex flex-col gap-4 h-full">
                     
+                    <!-- Tab Selection -->
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="window.location.href='/app'" class="mode-tab px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-slate-700 border-slate-700 text-slate-300 hover:bg-slate-600">
+                            <i class="fas fa-microscope mr-2"></i>Analyze Code
+                        </button>
+                        <button class="mode-tab active px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-emerald-600 border-emerald-600 text-white">
+                            <i class="fas fa-sparkles mr-2"></i>Generate Code
+                        </button>
+                    </div>
+
                     <!-- Configuration -->
                     <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg">
                         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -110,9 +120,9 @@
                             <div>
                                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">AI Model</label>
                                 <select id="model" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
-                                    <option value="llama-3.3-70b">Llama 3.3 70B (Balanced)</option>
-                                    <option value="llama-3.1-405b">Llama 3.1 405B (High Quality)</option>
-                                    <option value="mixtral-8x7b-32768">Mixtral 8x7B (Fastest)</option>
+                                    <option value="llama-3.3-70b">Llama 3.3 70B</option>
+                                    <option value="llama-3.1-405b">Llama 3.1 405B</option>
+                                    <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
                                 </select>
                             </div>
                             <div>
@@ -131,6 +141,7 @@
                         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <i class="fas fa-lightbulb text-yellow-400"></i> Prompt
                         </h2>
+
                         <textarea id="prompt" class="flex-1 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 focus:border-emerald-500 outline-none resize-none mb-4" 
                             placeholder="Describe the code you want to generate... (e.g., 'Create a REST API for a todo list using FastAPI')"></textarea>
                         

@@ -84,11 +84,7 @@ AVAILABLE_MODELS = {  # Available AI models
     "mixtral-8x7b-32768": {"name": "Mixtral 8x7B", "provider": "Groq", "speed": "Very Fast", "quality": "Good"},
 }
 # In-memory User Database (Replaces hardcoded dict in login)
-USER_DB = {
-    "admin": {"password": "password", "email": "admin@coderefine.ai"},
-    "student": {"password": "password", "email": "student@university.edu"},
-    "developer": {"password": "password", "email": "dev@techcorp.com"}
-}
+USER_DB = {}
 
 # Ensure reports directory exists
 REPORTS_DIR = Path(__file__).parent / "reports"
@@ -687,6 +683,9 @@ async def generate_tests(payload: dict = Body(...)):
     code = payload.get("code", "")
     language = payload.get("language", "python")
     
+    if user.lower() == "guest":
+        raise HTTPException(status_code=403, detail="Guests cannot save snippets")
+
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
     
@@ -800,6 +799,9 @@ async def save_to_history(payload: dict = Body(...)):
     code = payload.get("code", "")
     action = payload.get("action", "review")
     
+    if user.lower() == "guest":
+        return {"message": "History not saved for guest"}
+
     if user not in CODE_HISTORY:
         CODE_HISTORY[user] = []
     
@@ -827,6 +829,9 @@ async def track_activity(payload: dict = Body(...)):
     action = payload.get("action", "review")
     language = payload.get("language", "python")
     
+    if user.lower() == "guest":
+        return {"message": "Activity not tracked for guest"}
+
     if user not in USER_ANALYTICS:
         USER_ANALYTICS[user] = {"reviews": 0, "generations": 0, "languages": {}, "last_activity": ""}
     

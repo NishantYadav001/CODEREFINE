@@ -95,21 +95,8 @@
             </button>
         </form>
 
-        <div class="mt-8 p-4 bg-slate-900/50 rounded-xl border border-blue-500/30">
-            <div class="flex items-center gap-2 text-blue-400 mb-3 text-sm">
-                <i class="fas fa-info-circle"></i>
-                <span class="font-semibold">Demo Credentials</span>
-            </div>
-            <div class="space-y-2 text-[11px]">
-                <div class="flex justify-between">
-                    <span class="text-slate-400">Username:</span>
-                    <span class="text-slate-200 font-mono">admin | student | developer</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-400">Password:</span>
-                    <span class="text-slate-200 font-mono">password</span>
-                </div>
-            </div>
+        <div class="mt-6 text-center">
+            <button onclick="continueAsGuest()" class="text-slate-400 hover:text-white text-sm transition-colors border-b border-transparent hover:border-white pb-0.5">Continue as Guest</button>
         </div>
 
         <div class="text-center mt-8 text-[10px] text-slate-500 uppercase tracking-widest">
@@ -182,6 +169,10 @@
                 errorMsg.textContent = error.message || 'Login failed. Try admin/password';
                 errorMsg.classList.remove('hidden');
             }
+        }
+
+        function continueAsGuest() {
+            window.location.href = '/app?userType=student&username=Guest';
         }
         
         // Forgot Password Logic

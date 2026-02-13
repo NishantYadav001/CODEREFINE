@@ -22,7 +22,7 @@
             --text-secondary: #4b5563;
             --border-color: #e5e7eb;
         }
-        .bg-gray-900 { background-color: var(--bg-primary) !important; }
+        .bg-gray-900, .bg-slate-900 { background-color: var(--bg-primary) !important; }
         .bg-gray-800, .bg-slate-800 { background-color: var(--bg-secondary) !important; }
         .bg-slate-700 { background-color: #e5e7eb !important; } /* Light mode table header */
         body.light-mode .bg-slate-700 { background-color: #e5e7eb !important; color: #111827 !important; }
@@ -32,10 +32,10 @@
         body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
     </style>
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="bg-slate-900 text-white font-sans">
 
     <!-- Navbar -->
-    <nav class="bg-gray-800 border-b border-gray-700 p-4">
+    <nav class="bg-slate-800 border-b border-slate-700 p-4">
         <div class="container mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <i class="fas fa-shield-alt text-blue-500 text-2xl"></i>
@@ -57,19 +57,19 @@
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 class="text-gray-400 text-sm">Total Users</h3>
                 <p class="text-3xl font-bold text-blue-400" id="total-users">-</p>
             </div>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 class="text-gray-400 text-sm">Total Reviews</h3>
                 <p class="text-3xl font-bold text-green-400" id="total-reviews">-</p>
             </div>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 class="text-gray-400 text-sm">AI Generations</h3>
                 <p class="text-3xl font-bold text-purple-400" id="total-gens">-</p>
             </div>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 class="text-gray-400 text-sm">Top Language</h3>
                 <p class="text-3xl font-bold text-yellow-400" id="top-lang">-</p>
             </div>
@@ -77,22 +77,22 @@
 
         <!-- Charts Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 class="text-xl font-bold mb-4">Language Usage Distribution</h3>
                 <canvas id="langChart"></canvas>
             </div>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 class="text-xl font-bold mb-4">System Health</h3>
                 <div id="health-status" class="space-y-4">
-                    <div class="flex justify-between border-b border-gray-700 pb-2">
+                    <div class="flex justify-between border-b border-slate-700 pb-2">
                         <span>API Status</span>
                         <span id="api-status" class="text-green-500 font-bold">Checking...</span>
                     </div>
-                    <div class="flex justify-between border-b border-gray-700 pb-2">
+                    <div class="flex justify-between border-b border-slate-700 pb-2">
                         <span>Model</span>
                         <span id="model-name" class="text-gray-300">-</span>
                     </div>
-                    <div class="flex justify-between border-b border-gray-700 pb-2">
+                    <div class="flex justify-between border-b border-slate-700 pb-2">
                         <span>OCR Available</span>
                         <span id="ocr-status" class="text-gray-300">-</span>
                     </div>
