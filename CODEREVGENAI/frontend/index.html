@@ -121,6 +121,18 @@
         .search-highlight { background-color: rgba(34, 197, 94, 0.3); border-left: 3px solid #22c55e; }
 
         .prose pre { background: transparent !important; padding: 0 !important; }
+
+        /* Skeleton Loader */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 0.5rem;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-50 min-h-screen">
@@ -170,9 +182,6 @@
                     <button id="modeGenerate" class="mode-tab px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-slate-700 border-slate-700 text-slate-300 hover:bg-slate-600">
                         <i class="fas fa-sparkles mr-2"></i>Generate Code
                     </button>
-                    <button id="modeAdvanced" class="mode-tab px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-slate-700 border-slate-700 text-slate-300 hover:bg-slate-600">
-                        <i class="fas fa-sliders-h mr-2"></i>Advanced Settings
-                    </button>
                 </div>
 
                 <!-- Analysis Mode -->
@@ -184,6 +193,18 @@
                         </h2>
                     </div>
                     
+                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
+                            <i class="fas fa-brain text-purple-400 mr-2"></i>AI Model
+                        </label>
+                        <select id="modelSelectorAnalysis" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/50">
+                            <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
+                            <option value="llama-3.1-405b">🦙 Llama 3.1 405B (Most Accurate)</option>
+                            <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B (Fastest)</option>
+                            <option value="gemini-pro">✨ Gemini Pro (Google)</option>
+                        </select>
+                    </div>
+
                     <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
                         <label class="text-[10px] font-bold text-slate-400 block mb-2 uppercase italic"><i class="fas fa-camera mr-1"></i> Scan Code from Image</label>
                         <input type="file" id="ocrFile" accept="image/*" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
@@ -217,6 +238,18 @@
                         <i class="fas fa-sparkles text-emerald-400"></i> Describe Your Code
                     </h2>
                     
+                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
+                            <i class="fas fa-brain text-purple-400 mr-2"></i>AI Model
+                        </label>
+                        <select id="modelSelectorGeneration" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/50">
+                            <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
+                            <option value="llama-3.1-405b">🦙 Llama 3.1 405B (Most Accurate)</option>
+                            <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B (Fastest)</option>
+                            <option value="gemini-pro">✨ Gemini Pro (Google)</option>
+                        </select>
+                    </div>
+
                     <div class="space-y-3">
                         <label class="block text-sm font-bold text-slate-300">
                             <i class="fas fa-lightbulb mr-2 text-yellow-400"></i>What code do you want to generate?
@@ -263,85 +296,6 @@
                         <i class="fas fa-wand-magic-sparkles"></i> Generate Code
                     </button>
                 </div>
-
-                <!-- Advanced Settings Mode -->
-                <div id="advanced-panel" class="hidden space-y-4">
-                    <h2 class="text-lg font-semibold flex items-center gap-2">
-                        <i class="fas fa-sliders-h text-purple-400"></i> Advanced Settings
-                    </h2>
-
-                    <!-- AI Model Selector -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <label class="block text-sm font-bold text-slate-300 mb-3">
-                            <i class="fas fa-brain text-cyan-400 mr-2"></i>Select AI Model
-                        </label>
-                        <select id="modelSelector" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500/50">
-                            <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
-                            <option value="llama-3.1-405b">🦙 Llama 3.1 405B (Most Accurate)</option>
-                            <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B (Fastest)</option>
-                            <option value="gemini-pro">✨ Gemini Pro (Google)</option>
-                        </select>
-                    </div>
-
-                    <!-- Performance Metrics Dashboard -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                            <i class="fas fa-chart-line text-green-400"></i> Performance Metrics
-                        </h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="bg-slate-700/50 p-3 rounded-lg">
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Avg Response</p>
-                                <p id="avgResponseTime" class="text-xl font-bold text-green-400">--ms</p>
-                            </div>
-                            <div class="bg-slate-700/50 p-3 rounded-lg">
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Active Sessions</p>
-                                <p id="activeSessions" class="text-xl font-bold text-blue-400">--</p>
-                            </div>
-                            <div class="bg-slate-700/50 p-3 rounded-lg">
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Daily Usage</p>
-                                <p id="dailyUsage" class="text-xl font-bold text-yellow-400">--</p>
-                            </div>
-                            <div class="bg-slate-700/50 p-3 rounded-lg">
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Quota Status</p>
-                                <p id="quotaStatus" class="text-sm font-bold text-emerald-400">✅ OK</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Webhook Management -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                            <i class="fas fa-webhook text-orange-400"></i> Webhook Management
-                        </h3>
-                        <input type="text" id="webhookUrl" placeholder="https://your-webhook-url.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm mb-2 outline-none focus:ring-2 focus:ring-orange-500/50">
-                        <button id="registerWebhookBtn" class="w-full bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2">
-                            <i class="fas fa-plus"></i> Register Webhook
-                        </button>
-                    </div>
-
-                    <!-- Code Templates Library -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                            <i class="fas fa-library text-cyan-400"></i> Advanced Templates
-                        </h3>
-                        <select id="templateLanguage" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm mb-2 outline-none focus:ring-2 focus:ring-cyan-500/50">
-                            <option value="python">Python</option>
-                            <option value="javascript">JavaScript</option>
-                            <option value="java">Java</option>
-                        </select>
-                        <select id="templateCategory" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/50">
-                            <option value="design_patterns">Design Patterns</option>
-                            <option value="algorithms">Algorithms</option>
-                            <option value="async_patterns">Async Patterns</option>
-                        </select>
-                        <button id="loadTemplateBtn" class="w-full bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-sm font-bold mt-2">Load Template</button>
-                    </div>
-
-                    <button id="refreshMetricsBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-white transition-all">
-                        <i class="fas fa-sync"></i> Refresh Metrics
-                    </button>
-                </div>
-            </div>
 
             <div class="flex flex-col">
                 <div class="flex items-center justify-between mb-2">
@@ -700,11 +654,21 @@
                         if (typeof hljs !== 'undefined') hljs.highlightElement(originalOutput);
                     }
 
-                    if (feedback) feedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Processing as ${userType}...</div>`;
+                    if (feedback) {
+                        feedback.innerHTML = `
+                            <div class="space-y-4 p-2">
+                                <div class="flex items-center gap-2 text-sky-400 mb-4"><i class="fas fa-spinner fa-spin"></i> <span class="text-sm font-bold">AI is analyzing your code...</span></div>
+                                <div class="skeleton h-8 w-3/4"></div>
+                                <div class="skeleton h-4 w-full"></div>
+                                <div class="skeleton h-4 w-5/6"></div>
+                                <div class="skeleton h-32 w-full"></div>
+                                <div class="grid grid-cols-2 gap-4"><div class="skeleton h-20"></div><div class="skeleton h-20"></div></div>
+                            </div>`;
+                    }
 
                     try {
                         const endpoint = action === 'review' ? 'review' : 'rewrite';
-                        const model = get('modelSelector') ? get('modelSelector').value : 'llama-3.3-70b';
+                        const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
                         const response = await fetch(`http://localhost:8000/api/${endpoint}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -853,8 +817,16 @@
                     const style = get('generationStyle') ? get('generationStyle').value : 'production';
                     
                     const feedback = get('reviewFeedback');
-                    const model = get('modelSelector') ? get('modelSelector').value : 'llama-3.3-70b';
-                    if (feedback) feedback.innerHTML = `<div class='animate-pulse text-emerald-400'><i class='fas fa-spinner fa-spin'></i> Generating ${language} code...</div>`;
+                    const model = get('modelSelectorGeneration') ? get('modelSelectorGeneration').value : 'llama-3.3-70b';
+                    if (feedback) {
+                        feedback.innerHTML = `
+                            <div class="space-y-4 p-2">
+                                <div class="flex items-center gap-2 text-emerald-400 mb-4"><i class="fas fa-spinner fa-spin"></i> <span class="text-sm font-bold">Generating ${language} code...</span></div>
+                                <div class="skeleton h-12 w-full"></div>
+                                <div class="skeleton h-64 w-full"></div>
+                                <div class="skeleton h-12 w-1/2"></div>
+                            </div>`;
+                    }
 
                     try {
                         const styleMap = {
@@ -1021,16 +993,14 @@
                 const setupModeButtons = () => {
                     const btnAnalysis = get('modeAnalysis');
                     const btnGenerate = get('modeGenerate');
-                    const btnAdvanced = get('modeAdvanced');
                     
                     const panelAnalysis = get('analysis-panel');
                     const panelGeneration = get('generation-panel');
-                    const panelAdvanced = get('advanced-panel');
                     
                     const setActive = (btn) => {
-                        [btnAnalysis, btnGenerate, btnAdvanced].forEach(b => {
+                        [btnAnalysis, btnGenerate].forEach(b => {
                             if (b) {
-                                b.classList.remove('active', 'bg-sky-600', 'border-sky-600', 'bg-emerald-600', 'border-emerald-600', 'bg-purple-600', 'border-purple-600', 'text-white');
+                                b.classList.remove('active', 'bg-sky-600', 'border-sky-600', 'bg-emerald-600', 'border-emerald-600', 'text-white');
                                 b.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
                             }
                         });
@@ -1039,7 +1009,6 @@
                             btn.classList.add('active', 'text-white');
                             if (btn === btnAnalysis) btn.classList.add('bg-sky-600', 'border-sky-600');
                             if (btn === btnGenerate) btn.classList.add('bg-emerald-600', 'border-emerald-600');
-                            if (btn === btnAdvanced) btn.classList.add('bg-purple-600', 'border-purple-600');
                         }
                     };
 
@@ -1048,7 +1017,6 @@
                             if(e) e.preventDefault();
                             if (panelAnalysis) panelAnalysis.classList.remove('hidden');
                             if (panelGeneration) panelGeneration.classList.add('hidden');
-                            if (panelAdvanced) panelAdvanced.classList.add('hidden');
                             setActive(btnAnalysis);
                             
                             // Reset view
@@ -1068,7 +1036,6 @@
                             if(e) e.preventDefault();
                             if (panelAnalysis) panelAnalysis.classList.add('hidden');
                             if (panelGeneration) panelGeneration.classList.remove('hidden');
-                            if (panelAdvanced) panelAdvanced.classList.add('hidden');
                             setActive(btnGenerate);
                             
                             // Reset view
@@ -1080,17 +1047,6 @@
                                 codeDisplaySection.classList.add('lg:grid-cols-1');
                                 codeDisplaySection.classList.remove('hidden');
                             }
-                        });
-                    }
-
-                    if (btnAdvanced) {
-                        btnAdvanced.addEventListener('click', (e) => {
-                            if(e) e.preventDefault();
-                            if (panelAnalysis) panelAnalysis.classList.add('hidden');
-                            if (panelGeneration) panelGeneration.classList.add('hidden');
-                            if (panelAdvanced) panelAdvanced.classList.remove('hidden');
-                            setActive(btnAdvanced);
-                            showToast('📊 Advanced Settings loaded', 'info');
                         });
                     }
                 };
