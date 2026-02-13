@@ -1593,6 +1593,51 @@ async def set_maintenance_status(payload: dict = Body(...)):
     MAINTENANCE_MODE = enabled
     return {"message": f"Maintenance mode {'enabled' if enabled else 'disabled'}", "enabled": MAINTENANCE_MODE}
 
+# --- Password Reset (Simulated) ---
+
+@app.post("/api/forgot-password")
+async def forgot_password(payload: dict = Body(...)):
+    """Initiate password reset flow (Simulated Email)"""
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    user_found = False
+    
+    # Check MySQL
+    if DB_AVAILABLE:
+        conn = get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+                if cursor.fetchone():
+                    user_found = True
+            except Error as e:
+                print(f"DB Error: {e}")
+            finally:
+                if conn.is_connected():
+                    cursor.close()
+                    conn.close()
+
+    # Check In-Memory
+    if not user_found:
+        for data in USER_DB.values():
+            if data.get("email") == email:
+                user_found = True
+                break
+    
+    if user_found:
+        # Simulate sending email
+        reset_token = hashlib.sha256(f"{email}{datetime.now()}".encode()).hexdigest()[:16]
+        print("="*40)
+        print(f"📧 [SIMULATED EMAIL] To: {email}")
+        print(f"Subject: Password Reset Request")
+        print(f"Body: Click here to reset your password: http://localhost:8000/reset-password?token={reset_token}")
+        print("="*40)
+        
+    return {"message": "If an account exists for this email, a reset link has been sent."}
+
 # --- Page Routing ---
 
 @app.get("/{page}", response_class=HTMLResponse)

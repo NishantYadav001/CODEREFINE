@@ -188,12 +188,28 @@
         async function handleForgotSubmit(e) {
             e.preventDefault();
             const email = document.getElementById('forgot-email').value;
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
             
-            // Mock API call
-            // In a real app, you would fetch('/api/forgot-password', { body: JSON.stringify({ email }) })
+            btn.disabled = true;
+            btn.innerText = "Sending...";
             
-            alert(`If an account exists for ${email}, a reset link has been sent to your inbox.`);
-            closeForgotModal();
+            try {
+                const res = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await res.json();
+                alert(data.message);
+                closeForgotModal();
+            } catch (err) {
+                alert("Failed to send reset link. Please try again.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
         }
 
         // Do not auto-redirect on page load; require explicit login to reach /app
