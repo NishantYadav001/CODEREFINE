@@ -210,14 +210,14 @@ async def process_code(payload: dict = Body(...)):
 @app.post("/api/login")
 async def login(payload: dict = Body(...)):
     """Simple authentication - demo users"""
-    username = payload.get("username", "")
-    password = payload.get("password", "")
+    username = payload.get("username", " ")
+    password = payload.get("password", " ")
     
     # Demo credentials
     valid_users = {
         "admin": "password",
-        "student1": "password",
-        "teacher": "password"
+        "student": "password",
+        "developer": "password"
     }
     
     if username not in valid_users or valid_users[username] != password:

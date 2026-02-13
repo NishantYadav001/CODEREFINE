@@ -9,6 +9,11 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <!-- Diff View Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html-ui.min.js"></script>
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -19,7 +24,7 @@
             --border-color: #334155;
             --accent-color: #0ea5e9;
         }
-        
+
         body.light-mode {
             --bg-primary: #f1f5f9;
             --bg-secondary: #e2e8f0;
@@ -31,35 +36,43 @@
         }
 
         /* MASTER THEME OVERRIDE - Forces all color classes to use CSS variables */
-        .bg-slate-900, .bg-slate-800, .bg-slate-700, .bg-slate-600 { background-color: var(--bg-primary) !important; }
-        .text-slate-50, .text-slate-300, .text-slate-400, .text-slate-500 { color: var(--text-primary) !important; }
+        .bg-slate-900 { background-color: var(--bg-primary) !important; }
+        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
+        .bg-slate-700 { background-color: var(--bg-tertiary) !important; }
+        .bg-slate-600 { background-color: var(--bg-tertiary) !important; }
+
+        .text-slate-50 { color: var(--text-primary) !important; }
+        .text-slate-300 { color: var(--text-secondary) !important; }
+        .text-slate-400 { color: var(--text-secondary) !important; }
+        .text-slate-500 { color: var(--text-secondary) !important; }
+
         .border-slate-700, .border-slate-600 { border-color: var(--border-color) !important; }
-        
+
         * { color: inherit; }
         body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
         nav { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; border-bottom-color: var(--border-color) !important; }
         .container { color: var(--text-primary); background-color: transparent; }
         h1, h2, h3, h4, h5, h6 { color: var(--text-primary) !important; }
-        
+
         /* Form Elements */
         input, textarea, select { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
         input::placeholder, textarea::placeholder { color: var(--text-secondary) !important; }
         input:focus, textarea:focus, select:focus { border-color: var(--accent-color) !important; }
-        
+
         /* Code Elements */
         .code-editor { font-family: 'Fira Code', monospace; background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
         .code-output { background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); overflow-x: auto; }
-        
+
         /* Buttons */
         .btn-primary { background: linear-gradient(to right, #2563eb, #9333ea); transition: all 0.3s; }
         .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
         .mode-tab { cursor: pointer; transition: all 0.2s; }
         .mode-tab.active { font-weight: bold; }
-        
+
         /* Panels */
         .analysis-mode, .generation-mode { transition: opacity 0.3s ease-in-out; }
         .hidden { display: none; }
-        
+
         /* Toast Notifications */
         #toast-container {
             position: fixed;
@@ -68,7 +81,7 @@
             z-index: 9999;
             pointer-events: none;
         }
-        
+
         .toast {
             background-color: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -84,29 +97,29 @@
             animation: slideIn 0.3s ease-out;
             pointer-events: auto;
         }
-        
+
         .toast.success { border-left: 4px solid #10b981; }
         .toast.error { border-left: 4px solid #ef4444; }
         .toast.info { border-left: 4px solid var(--accent-color); }
         .toast.warning { border-left: 4px solid #f59e0b; }
-        
+
         @keyframes slideIn {
             from { transform: translateX(400px); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
-        
+
         @keyframes slideOut {
             to { transform: translateX(400px); opacity: 0; }
         }
-        
+
         .toast.removing { animation: slideOut 0.3s ease-in forwards; }
-        
+
         /* Drag & Drop */
         .drag-over { background-color: var(--accent-color) !important; opacity: 0.5; border-color: var(--accent-color) !important; }
-        
+
         /* Search Results Highlight */
         .search-highlight { background-color: rgba(34, 197, 94, 0.3); border-left: 3px solid #22c55e; }
-        
+
         .prose pre { background: transparent !important; padding: 0 !important; }
     </style>
 </head>
@@ -142,12 +155,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div class="space-y-4">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
-                        <label class="text-[10px] font-bold text-slate-400 block mb-2 uppercase italic"><i class="fas fa-camera mr-1"></i> Scan Code from Image</label>
-                        <input type="file" id="ocrFile" accept="image/*" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
-                    </div>
-                    
+                <div class="grid grid-cols-1 gap-4">
                     <div id="policy-upload-zone" class="hidden bg-slate-800 p-3 rounded-xl border border-dashed border-sky-500/40">
                         <label class="text-[10px] font-bold text-sky-400 block mb-2 uppercase italic"><i class="fas fa-file-shield mr-1"></i> Upload Company Policy</label>
                         <input type="file" id="policyFile" accept=".txt,.pdf" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
@@ -172,13 +180,13 @@
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-semibold flex items-center gap-2">
                             <i class="fas fa-code text-sky-400"></i> Source Code
+                            <span id="detectedLangDisplay" class="text-xs text-slate-500 ml-2 font-normal hidden"></span>
                         </h2>
-                        <select id="languageSelect" class="bg-slate-800 border border-slate-700 rounded-md p-1.5 text-sm outline-none">
-                            <option value="python">Python</option>
-                            <option value="java">Java</option>
-                            <option value="javascript">JavaScript</option>
-                            <option value="cpp">C++</option>
-                        </select>
+                    </div>
+                    
+                    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                        <label class="text-[10px] font-bold text-slate-400 block mb-2 uppercase italic"><i class="fas fa-camera mr-1"></i> Scan Code from Image</label>
+                        <input type="file" id="ocrFile" accept="image/*" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
                     </div>
                     
                     <textarea id="codeInput" class="code-editor w-full h-80 p-4 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/50 dropzone" placeholder="Enter your code or upload an image...&#10;💡 Tip: Drag & drop code files here or use Keyboard Shortcuts (Ctrl+Enter to Review, Ctrl+G to Generate)"></textarea>
@@ -213,7 +221,12 @@
                         <label class="block text-sm font-bold text-slate-300">
                             <i class="fas fa-lightbulb mr-2 text-yellow-400"></i>What code do you want to generate?
                         </label>
-                        <textarea id="generationPrompt" class="code-editor w-full h-24 p-4 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/50" placeholder="Example: Create a Python function to sort an array in descending order using merge sort algorithm"></textarea>
+                        <div class="relative">
+                            <textarea id="generationPrompt" class="code-editor w-full h-24 p-4 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/50" placeholder="Example: Create a Python function to sort an array in descending order using merge sort algorithm"></textarea>
+                            <button id="voiceBtn" class="absolute bottom-3 right-3 text-slate-400 hover:text-emerald-400 transition-colors p-2" title="Speak Prompt">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -266,6 +279,7 @@
                             <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
                             <option value="llama-3.1-405b">🦙 Llama 3.1 405B (Most Accurate)</option>
                             <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B (Fastest)</option>
+                            <option value="gemini-pro">✨ Gemini Pro (Google)</option>
                         </select>
                     </div>
 
@@ -391,6 +405,10 @@
                 </div>
             </div>
 
+            <div class="flex justify-end mb-2">
+                <button id="toggleDiffBtn" class="hidden text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded border border-slate-600 text-slate-300"><i class="fas fa-columns mr-1"></i> Toggle Diff View</button>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="codeDisplaySection">
                 <div id="originalCodeSection">
                     <h3 class="text-sm font-bold mb-2 text-slate-500 px-2 uppercase italic">Original Input</h3>
@@ -409,6 +427,9 @@
                      </div>
                 </div>
             </div>
+
+            <!-- Diff View Container -->
+            <div id="diffViewContainer" class="hidden bg-white rounded-xl overflow-hidden p-1"></div>
 
             <!-- Generation Mode Placeholder -->
             <div id="generationPlaceholder" class="hidden mt-8">
@@ -523,760 +544,793 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            // Matches backend expectations
-            const userType = params.get('userType') || 'developer';
-            const studentName = params.get('email') || params.get('username') || 'Guest';
+        /**
+         * Code Refine - Main Frontend Script
+         * Handles UI interactions, API calls, and state management.
+         */
 
-            const modes = {
-                'student': { title: 'AI DEBUGGER', sub: 'STUDENT Edition', badge: 'Student' },
-                'enterprise': { title: 'Security Shield', sub: 'Enterprise Edition', badge: 'Admin' },
-                'organisation': { title: 'Team Reviewer', sub: 'Organisation Edition', badge: 'Team' },
-                'developer': { title: 'Code Refine', sub: 'Developer Edition', badge: 'Pro' }
-            };
+        // Global error handler for debugging
+        window.onerror = function(msg, url, line, col, error) {
+            console.error("❌ Global Error:", msg, "\nLine:", line, "\nError:", error);
+            return false;
+        };
 
-            const config = modes[userType] || modes.developer;
-            document.getElementById('platform-title').innerText = config.title;
-            document.getElementById('platform-subtitle').innerText = config.sub;
-            document.getElementById('user-badge').innerText = config.badge;
+        // Initialize application when DOM is ready
+        const initApp = () => {
+            // Prevent double initialization
+            if (window.appInitialized) return;
+            window.appInitialized = true;
 
-            if (userType === 'student') {
-                document.getElementById('student-tracking').classList.remove('hidden');
-                document.getElementById('plagiarism-badge').classList.remove('hidden');
-            }
-            if (userType === 'enterprise' || userType === 'organisation') {
-                document.getElementById('policy-upload-zone').classList.remove('hidden');
-            }
+            console.log("🚀 Code Refine: Initializing...");
 
-            // 1. OCR
-            document.getElementById('ocrFile').onchange = async (e) => {
-                if (!e.target.files[0]) return;
-                const formData = new FormData();
-                formData.append('file', e.target.files[0]);
-                try {
-                    const res = await fetch('http://localhost:8000/api/ocr', { method: 'POST', body: formData });
-                    if (!res.ok) throw new Error("OCR Failed");
-                    const data = await res.json();
-                    document.getElementById('codeInput').value = data.extracted_code;
-                } catch (err) { alert(err.message); }
-            };
+            try {
+                // --- 1. CONFIGURATION & STATE ---
+                const params = new URLSearchParams(window.location.search);
+                const userType = params.get('userType') || 'developer';
+                const studentName = params.get('email') || params.get('username') || 'Guest';
 
-            // 2. Policy RAG
-            document.getElementById('policyFile').onchange = async (e) => {
-                if (!e.target.files[0]) return;
-                const formData = new FormData();
-                formData.append('file', e.target.files[0]);
-                try {
-                    const res = await fetch('http://localhost:8000/api/upload-policy', { method: 'POST', body: formData });
-                    const data = await res.json();
-                    alert(data.message);
-                } catch (err) { alert("Upload failed"); }
-            };
+                const modes = {
+                    'student': { title: 'AI DEBUGGER', sub: 'STUDENT Edition', badge: 'Student' },
+                    'enterprise': { title: 'Security Shield', sub: 'Enterprise Edition', badge: 'Admin' },
+                    'organisation': { title: 'Team Reviewer', sub: 'Organisation Edition', badge: 'Team' },
+                    'developer': { title: 'Code Refine', sub: 'Developer Edition', badge: 'Pro' }
+                };
 
-            // 3. Process Code (Review/Fix)
-            async function processCode(action) {
-                const code = document.getElementById('codeInput').value;
-                if (!code.trim()) return alert("Please paste some code!");
-
-                const focusAreas = Array.from(document.querySelectorAll('input[name="focusArea"]:checked')).map(cb => cb.value);
-                const language = document.getElementById('languageSelect').value;
+                // Safe DOM Element Access Helper
+                const get = (id) => document.getElementById(id);
                 
-                // Restore analysis mode layout
-                const originalSection = document.getElementById('originalCodeSection');
-                const codeDisplaySection = document.getElementById('codeDisplaySection');
-                const generatedSection = document.getElementById('generatedCodeSection');
-                
-                originalSection.style.display = 'block';
-                codeDisplaySection.classList.remove('lg:grid-cols-1');
-                codeDisplaySection.classList.add('lg:grid-cols-2');
-                generatedSection.querySelector('h3').innerHTML = '<i class="fas fa-wand-magic-sparkles text-sky-400 mr-2"></i>AI Rewritten Version';
-                
-                document.getElementById('originalCodeOutput').textContent = code;
-                hljs.highlightElement(document.getElementById('originalCodeOutput'));
-
-                const feedback = document.getElementById('reviewFeedback');
-                feedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Processing as ${userType}...</div>`;
-
-                try {
-                    const endpoint = action === 'review' ? 'review' : 'rewrite';
-                    const response = await fetch(`http://localhost:8000/api/${endpoint}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            code: code,
-                            language: language,
-                            user_type: userType,
-                            student_name: studentName,
-                            focus_areas: focusAreas
-                        })
-                    });
-
-                    if (!response.ok) throw new Error("Server Error");
-                    const data = await response.json();
-
-                    // Update UI Counts
-                    document.getElementById('critical-count').innerText = data.stats.critical || 0;
-                    document.getElementById('high-count').innerText = data.stats.high || 0;
-                    document.getElementById('medium-count').innerText = data.stats.medium || 0;
-                    document.getElementById('low-count').innerText = data.stats.low || 0;
-
-                    if (userType === 'student') {
-                        document.getElementById('plag-score').innerText = data.plagiarism || "0%";
-                        document.getElementById('review-count').innerText = data.student_stats || 0;
+                // Robust Event Listener Helper
+                const setClick = (id, handler) => {
+                    const el = get(id);
+                    if (el) {
+                        el.addEventListener('click', async (e) => {
+                            if (e && e.preventDefault) e.preventDefault();
+                            console.log(`🖱️ Clicked: ${id}`);
+                            try {
+                                await handler(e);
+                            } catch (err) {
+                                console.error(`Error in ${id} handler:`, err);
+                                showToast(`Error: ${err.message}`, 'error');
+                            }
+                        });
+                    } else {
+                        console.warn(`⚠️ Element with id '${id}' not found.`);
                     }
+                };
 
-                    feedback.innerHTML = marked.parse(data.review);
-                    
-                    if (action === 'fix') {
-                        const rwOut = document.getElementById('rewrittenCodeOutput');
-                        rwOut.textContent = data.rewritten_code;
-                        hljs.highlightElement(rwOut);
-                        
-                        document.getElementById('complexity-section').classList.remove('hidden');
-                        document.getElementById('original-complexity-display').innerText = data.time_complexity_original || "O(n)";
-                        document.getElementById('rewritten-complexity-display').innerText = data.time_complexity_rewritten || "O(n)";
-                        
-                        document.getElementById('download-section').classList.remove('hidden');
-                        document.getElementById('downloadCodeBtn').classList.remove('hidden');
-
-                        // Save data for downloads
-                        window.downloadData = {
-                            code: data.rewritten_code,
-                            review: data.review,
-                            language: language,
-                            originalCode: code,
-                            stats: data.stats,
-                            complexity_original: data.time_complexity_original || "O(n)",
-                            complexity_rewritten: data.time_complexity_rewritten || "O(n)"
-                        };
+                const setChange = (id, handler) => {
+                    const el = get(id);
+                    if (el) {
+                        el.addEventListener('change', async (e) => {
+                            console.log(`🔄 Changed: ${id}`);
+                            try {
+                                await handler(e);
+                            } catch (err) {
+                                console.error(`Error in ${id} handler:`, err);
+                            }
+                        });
                     }
-                    hljs.highlightAll();
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
+                };
+
+                // --- 2. UI SETUP ---
+                const config = modes[userType] || modes.developer;
+                if (get('platform-title')) get('platform-title').innerText = config.title;
+                if (get('platform-subtitle')) get('platform-subtitle').innerText = config.sub;
+                if (get('user-badge')) get('user-badge').innerText = config.badge;
+
+                if (userType === 'student') {
+                    if (get('student-tracking')) get('student-tracking').classList.remove('hidden');
+                    if (get('plagiarism-badge')) get('plagiarism-badge').classList.remove('hidden');
                 }
-            }
+                if ((userType === 'enterprise' || userType === 'organisation') && get('policy-upload-zone')) {
+                    get('policy-upload-zone').classList.remove('hidden');
+                }
 
-            document.getElementById('reviewBtn').onclick = () => processCode('review');
-            document.getElementById('fixBtn').onclick = () => processCode('fix');
-            
-            // 4. Code Generation
-            document.getElementById('generateBtn').onclick = async () => {
-                const prompt = document.getElementById('generationPrompt').value.trim();
-                if (!prompt) return alert("Please describe what code you want to generate!");
+                // --- 3. CORE FUNCTIONS ---
 
-                const language = document.getElementById('generationLanguage').value;
-                const style = document.getElementById('generationStyle').value;
-                
-                const feedback = document.getElementById('reviewFeedback');
-                feedback.innerHTML = `<div class='animate-pulse text-emerald-400'><i class='fas fa-spinner fa-spin'></i> Generating ${language} code...</div>`;
-
-                try {
-                    const styleMap = {
-                        'production': 'Optimized production code',
-                        'educational': 'Well-commented code for learning',
-                        'compact': 'Minimal and compact code',
-                        'verbose': 'Detailed and verbose code'
-                    };
-
-                    const response = await fetch(`http://localhost:8000/api/generate`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: `${styleMap[style]}: ${prompt}`,
-                            language: language,
-                            user_type: userType
-                        })
-                    });
-
-                    if (!response.ok) throw new Error("Code generation failed");
-                    const data = await response.json();
-
-                    const generatedCode = data.generated_code || '';
+                // Toast Notification Helper
+                const showToast = (message, type = 'info', duration = 3000) => {
+                    const container = get('toast-container');
+                    if (!container) return;
                     
-                    // Show code display section and hide placeholder
-                    const codeDisplaySection = document.getElementById('codeDisplaySection');
-                    const generationPlaceholder = document.getElementById('generationPlaceholder');
+                    const toast = document.createElement('div');
+                    toast.className = `toast ${type}`;
+                    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i><span>${message}</span>`;
+                    container.appendChild(toast);
                     
-                    generationPlaceholder.classList.add('hidden');
-                    codeDisplaySection.classList.remove('hidden');
+                    // Animation
+                    setTimeout(() => {
+                        toast.classList.add('removing');
+                        setTimeout(() => toast.remove(), 300);
+                    }, duration);
+                };
+
+                // Process Code (Review or Rewrite)
+                async function processCode(action) {
+                    const codeInput = get('codeInput');
+                    if (!codeInput) return;
                     
-                    // Adjust layout for generation
-                    const originalSection = document.getElementById('originalCodeSection');
-                    originalSection.style.display = 'none';
-                    codeDisplaySection.classList.remove('lg:grid-cols-2');
-                    codeDisplaySection.classList.add('lg:grid-cols-1');
-                    
-                    // Update the generated code section header
-                    const generatedSection = document.getElementById('generatedCodeSection');
-                    generatedSection.querySelector('h3').innerHTML = '<i class="fas fa-sparkles text-emerald-400 mr-2"></i>Generated Code';
-                    
-                    // Display generated code
-                    const codeElement = document.getElementById('rewrittenCodeOutput');
-                    codeElement.textContent = generatedCode;
-                    codeElement.className = `language-${language}`;
-                    hljs.highlightElement(codeElement);
-
-                    // Hide complexity section for generation mode
-                    document.getElementById('complexity-section').classList.add('hidden');
-
-                    feedback.innerHTML = `<div class='bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4 mb-4'>
-                        <p class='text-emerald-400 font-bold'><i class='fas fa-check-circle mr-2'></i>Code Generated Successfully!</p>
-                        <p class='text-emerald-300 text-sm mt-1'>Language: <strong>${language.toUpperCase()}</strong> | Style: <strong>${style}</strong></p>
-                    </div>`;
-
-                    document.getElementById('download-section').classList.remove('hidden');
-                    document.getElementById('downloadCodeBtn').classList.remove('hidden');
-
-                    // Save for downloads
-                    window.downloadData = {
-                        code: generatedCode,
-                        review: `Generated ${language} code\n\nPrompt: ${prompt}`,
-                        language: language,
-                        originalCode: generatedCode,
-                        stats: { critical: 0, high: 0, medium: 0, low: 0 },
-                        complexity_original: "Fresh",
-                        complexity_rewritten: generatedCode ? "Generated" : "N/A"
-                    };
-
-                    // Update copy button for generated code
-                    document.getElementById('copyBtn').onclick = function() {
-                        navigator.clipboard.writeText(generatedCode);
-                        this.innerHTML = '<i class="fas fa-check"></i> Copied';
-                        setTimeout(() => this.innerHTML = '<i class="fas fa-copy"></i> Copy Code', 2000);
-                    };
-
-                    hljs.highlightAll();
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
-                }
-            };
-
-            // Mode Switching - REMOVED (will be handled by setupModeButtons later)
-            
-            // Helpers
-            document.getElementById('copyBtn').onclick = function() {
-                const text = document.getElementById('rewrittenCodeOutput').textContent;
-                navigator.clipboard.writeText(text);
-                this.innerHTML = '<i class="fas fa-check"></i> Copied';
-                setTimeout(() => this.innerHTML = '<i class="fas fa-copy"></i> Copy Code', 2000);
-            };
-
-            // Download Logic
-            const triggerDownload = (blob, filename) => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = filename;
-                document.body.appendChild(a); a.click();
-                window.URL.revokeObjectURL(url); a.remove();
-            };
-
-            document.getElementById('downloadCodeFileBtn').onclick = function() {
-                if (!window.downloadData) return alert('Run Auto-Rewrite first');
-                const extMap = { 'python': 'py', 'java': 'java', 'javascript': 'js', 'cpp': 'cpp' };
-                const ext = extMap[window.downloadData.language] || 'txt';
-                const blob = new Blob([window.downloadData.code], { type: 'text/plain' });
-                triggerDownload(blob, `refactored_code.${ext}`);
-            };
-
-            document.getElementById('downloadSummaryBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Run Auto-Rewrite first');
-                const format = document.querySelector('input[name="downloadFormat"]:checked').value;
-                const res = await fetch('http://localhost:8000/api/download/summary', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ format, review: window.downloadData.review, stats: window.downloadData.stats })
-                });
-                if (res.ok) triggerDownload(await res.blob(), `summary.${format}`);
-            };
-
-            document.getElementById('downloadReportBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Run Auto-Rewrite first');
-                const format = document.querySelector('input[name="downloadFormat"]:checked').value;
-                const res = await fetch('http://localhost:8000/api/download/report', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        format, ...window.downloadData,
-                        original_code: window.downloadData.originalCode,
-                        rewritten_code: window.downloadData.code
-                    })
-                });
-                if (res.ok) triggerDownload(await res.blob(), `report.${format}`);
-            };
-
-            // Show advanced features when code is ready
-            const showAdvancedFeatures = () => {
-                document.getElementById('advanced-features').classList.remove('hidden');
-            };
-
-            // 1. Generate Tests
-            document.getElementById('generateTestsBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Generate or analyze code first');
-                const code = window.downloadData.originalCode || window.downloadData.code;
-                const language = window.downloadData.language;
-                const feedback = document.getElementById('reviewFeedback');
-                feedback.innerHTML = '<p class="text-blue-400"><i class="fas fa-spinner animate-spin mr-2"></i>Generating tests...</p>';
-                
-                try {
-                    const res = await fetch('http://localhost:8000/api/generate-tests', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, language })
-                    });
-                    const data = await res.json();
-                    feedback.innerHTML = `<h4 class="text-emerald-400 font-bold mb-2">Unit Tests</h4><pre class="bg-slate-800 p-3 rounded text-sm overflow-auto max-h-96"><code>${escapeHtml(data.tests)}</code></pre>`;
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
-                }
-            };
-
-            // 2. Generate Documentation
-            document.getElementById('generateDocsBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Generate or analyze code first');
-                const code = window.downloadData.originalCode || window.downloadData.code;
-                const language = window.downloadData.language;
-                const feedback = document.getElementById('reviewFeedback');
-                feedback.innerHTML = '<p class="text-blue-400"><i class="fas fa-spinner animate-spin mr-2"></i>Generating documentation...</p>';
-                
-                try {
-                    const res = await fetch('http://localhost:8000/api/generate-docs', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, language })
-                    });
-                    const data = await res.json();
-                    feedback.innerHTML = `<h4 class="text-blue-400 font-bold mb-2">Generated Documentation</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto">${marked.parse(data.documentation)}</div>`;
-                    hljs.highlightAll();
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
-                }
-            };
-
-            // 3. Security Scan
-            document.getElementById('securityScanBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Generate or analyze code first');
-                const code = window.downloadData.originalCode || window.downloadData.code;
-                const language = window.downloadData.language;
-                const feedback = document.getElementById('reviewFeedback');
-                feedback.innerHTML = '<p class="text-yellow-400"><i class="fas fa-spinner animate-spin mr-2"></i>Scanning for security vulnerabilities...</p>';
-                
-                try {
-                    const res = await fetch('http://localhost:8000/api/security-scan', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, language })
-                    });
-                    const data = await res.json();
-                    feedback.innerHTML = `<h4 class="text-red-400 font-bold mb-2"><i class="fas fa-shield-alt mr-2"></i>Security Analysis</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto whitespace-pre-wrap text-sm">${escapeHtml(data.security_analysis)}</div>`;
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
-                }
-            };
-
-            // 4. Refactor Suggestions
-            document.getElementById('refactorSuggestionsBtn').onclick = async function() {
-                if (!window.downloadData) return alert('Generate or analyze code first');
-                const code = window.downloadData.originalCode || window.downloadData.code;
-                const language = window.downloadData.language;
-                const feedback = document.getElementById('reviewFeedback');
-                feedback.innerHTML = '<p class="text-purple-400"><i class="fas fa-spinner animate-spin mr-2"></i>Analyzing refactoring opportunities...</p>';
-                
-                try {
-                    const res = await fetch('http://localhost:8000/api/refactor-suggestions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, language })
-                    });
-                    const data = await res.json();
-                    feedback.innerHTML = `<h4 class="text-purple-400 font-bold mb-2">Refactoring Suggestions</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto">${marked.parse(data.refactoring_suggestions)}</div>`;
-                    hljs.highlightAll();
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
-                }
-            };
-
-            // 5. Save as Snippet
-            document.getElementById('saveSnippetBtn').onclick = function() {
-                if (!window.downloadData) return alert('Generate or analyze code first');
-                const title = prompt('Snippet title:', 'My Code Snippet');
-                if (!title) return;
-                
-                const user = new URLSearchParams(window.location.search).get('email') || 'default';
-                const code = window.downloadData.originalCode || window.downloadData.code;
-                const language = window.downloadData.language;
-                
-                fetch('http://localhost:8000/api/snippets/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user, title, code, language })
-                }).then(res => res.json()).then(data => {
-                    alert(`✅ Snippet saved as #${data.snippet_id}: ${title}`);
-                }).catch(err => alert(`Error: ${err.message}`));
-            };
-
-            // 6. View History
-            document.getElementById('viewHistoryBtn').onclick = async function() {
-                const user = new URLSearchParams(window.location.search).get('email') || 'default';
-                const feedback = document.getElementById('reviewFeedback');
-                
-                try {
-                    const res = await fetch(`http://localhost:8000/api/history/${user}`);
-                    const data = await res.json();
-                    if (data.history.length === 0) {
-                        feedback.innerHTML = '<p class="text-slate-400">No version history yet.</p>';
+                    const code = codeInput.value;
+                    if (!code.trim()) {
+                        showToast("Please paste some code first!", "warning");
                         return;
                     }
-                    let html = `<h4 class="text-cyan-400 font-bold mb-2">Code History (${data.total_versions} versions)</h4>`;
-                    data.history.forEach(v => {
-                        html += `<div class="bg-slate-700 p-2 rounded mb-2"><p class="text-sm text-cyan-300">Version ${v.version} - ${v.action} (${new Date(v.timestamp).toLocaleString()})</p></div>`;
-                    });
-                    feedback.innerHTML = html;
-                } catch (err) {
-                    feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
-                }
-            };
 
-            // Helper: Escape HTML
-            const escapeHtml = (text) => {
-                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-                return text.replace(/[&<>"']/g, c => map[c]);
-            };
-
-            // ========== STAGE 2 FEATURES ==========
-            
-            // 1. TOAST NOTIFICATIONS
-            const showToast = (message, type = 'info', duration = 3000) => {
-                const container = document.getElementById('toast-container');
-                const toast = document.createElement('div');
-                toast.className = `toast ${type}`;
-                toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i><span>${message}</span>`;
-                container.appendChild(toast);
-                setTimeout(() => {
-                    toast.classList.add('removing');
-                    setTimeout(() => toast.remove(), 300);
-                }, duration);
-            };
-
-            // 2. KEYBOARD SHORTCUTS
-            document.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('reviewBtn')?.click() || document.getElementById('autoReviewBtn')?.click();
-                    showToast('⌨️ Running code review...', 'info');
-                } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-                    e.preventDefault();
-                    document.getElementById('generateBtn')?.click();
-                    showToast('⌨️ Generating code...', 'info');
-                } else if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                    e.preventDefault();
-                    document.getElementById('search-results').classList.toggle('hidden');
-                    document.getElementById('search-results').focus();
-                    showToast('⌨️ Search enabled', 'info');
-                }
-            });
-
-            // 3. THEME TOGGLE (Dark/Light Mode)
-            const themeToggle = document.getElementById('theme-toggle');
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.body.classList.toggle('light-mode', savedTheme === 'light');
-            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-                showToast(`Switched to ${isLight ? 'Light' : 'Dark'} mode`, 'success');
-            };
-
-            // 4. DRAG & DROP FILE UPLOAD
-            const setupDragDrop = () => {
-                const dropZone = document.querySelector('.dropzone');
-                if (!dropZone) return;
-                
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    });
-                });
-                
-                ['dragenter', 'dragover'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'));
-                });
-                
-                ['dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
-                });
-                
-                dropZone.addEventListener('drop', (e) => {
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        const file = files[0];
-                        if (file.type.startsWith('text') || file.name.endsWith('.py') || file.name.endsWith('.js') || file.name.endsWith('.java') || file.name.endsWith('.cpp')) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                                dropZone.value = event.target.result;
-                                showToast(`✅ File uploaded: ${file.name}`, 'success');
-                            };
-                            reader.readAsText(file);
-                        } else {
-                            showToast('❌ Please drop valid code files', 'error');
-                        }
+                    const focusAreas = Array.from(document.querySelectorAll('input[name="focusArea"]:checked')).map(cb => cb.value);
+                    
+                    // Auto-detect language
+                    let language = 'python';
+                    if (typeof hljs !== 'undefined') {
+                        try {
+                            const detected = hljs.highlightAuto(code);
+                            language = detected.language || 'python';
+                        } catch (e) { console.warn("HighlightJS error", e); }
                     }
-                });
-            };
-            setupDragDrop();
+                    
+                    // Map common aliases
+                    const aliasMap = { 'js': 'javascript', 'ts': 'typescript', 'c++': 'cpp', 'cs': 'csharp', 'py': 'python' };
+                    language = aliasMap[language] || language;
 
-            // 5. SEARCH & FILTER RESULTS
-            const searchBox = document.getElementById('search-results');
-            searchBox.addEventListener('input', () => {
-                const query = searchBox.value.toLowerCase();
-                if (!query) {
-                    document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
-                    return;
-                }
-                
-                const feedback = document.getElementById('reviewFeedback');
-                if (feedback) {
-                    const text = feedback.innerText;
-                    if (text.toLowerCase().includes(query)) {
-                        feedback.classList.add('search-highlight');
-                        showToast(`Found "${query}" in results`, 'info');
-                    } else {
-                        feedback.classList.remove('search-highlight');
-                        showToast(`No match for "${query}"`, 'warning');
+                    const langDisplay = get('detectedLangDisplay');
+                    if (langDisplay) { 
+                        langDisplay.textContent = `(Detected: ${language})`; 
+                        langDisplay.classList.remove('hidden'); 
                     }
-                }
-            });
-
-            // Show advanced features after first action
-    //         const originalReviewOnclick = document.getElementById('autoReviewBtn')?.onclick;
-     //       document.getElementById('autoReviewBtn').onclick = function() {
-       //         originalReviewOnclick && originalReviewOnclick.call(this);
-        //        showToast('✅ Analysis complete! Check advanced tools below', 'success');
-        //        setTimeout(showAdvancedFeatures, 2000);
-        //    };
-
-    const btn = document.getElementById('generateBtn');
-    const originalGenerateOnclick = btn?.onclick;
-
-    if (btn) {
-        btn.onclick = function() {
-            originalGenerateOnclick && originalGenerateOnclick.call(this);
-            showToast('✅ Code generated! Advanced tools ready', 'success');
-            setTimeout(showAdvancedFeatures, 2000);
-        };
-    }
-
-            // Keyboard shortcut helper tooltip
-            document.getElementById('reviewBtn').title += ' (Ctrl+Enter)';
-            if(document.getElementById('generateBtn')) document.getElementById('generateBtn').title += ' (Ctrl+G)';
-            
-            // ========== STAGE 3: ADVANCED FEATURES ==========
-            
-            // Mode Switching - UNIFIED HANDLER
-            const setupModeButtons = () => {
-                const btnAnalysis = document.getElementById('modeAnalysis');
-                const btnGenerate = document.getElementById('modeGenerate');
-                const btnAdvanced = document.getElementById('modeAdvanced');
-                
-                const panelAnalysis = document.getElementById('analysis-panel');
-                const panelGeneration = document.getElementById('generation-panel');
-                const panelAdvanced = document.getElementById('advanced-panel');
-                
-                // Analysis Mode
-                btnAnalysis.addEventListener('click', function(e) {
-                    e.stopPropagation();
                     
-                    // Show/hide panels
-                    panelAnalysis.classList.remove('hidden');
-                    panelGeneration.classList.add('hidden');
-                    panelAdvanced.classList.add('hidden');
+                    // UI Updates for Processing State
+                    const originalSection = get('originalCodeSection');
+                    const codeDisplaySection = get('codeDisplaySection');
+                    const generatedSection = get('generatedCodeSection');
+                    const originalOutput = get('originalCodeOutput');
+                    const feedback = get('reviewFeedback');
                     
-                    // Update button styles
-                    btnAnalysis.classList.add('active', 'bg-sky-600', 'border-sky-600', 'text-white');
-                    btnAnalysis.classList.remove('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnGenerate.classList.remove('active', 'bg-emerald-600', 'border-emerald-600', 'text-white');
-                    btnGenerate.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnAdvanced.classList.remove('active', 'bg-purple-600', 'border-purple-600', 'text-white');
-                    btnAdvanced.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    
-                    // Reset code display for analysis mode
-                    const originalCodeSection = document.getElementById('originalCodeSection');
-                    if (originalCodeSection) originalCodeSection.style.display = 'block';
-                    const codeDisplaySection = document.getElementById('codeDisplaySection');
+                    if (originalSection) originalSection.style.display = 'block';
                     if (codeDisplaySection) {
                         codeDisplaySection.classList.remove('lg:grid-cols-1');
                         codeDisplaySection.classList.add('lg:grid-cols-2');
                         codeDisplaySection.classList.remove('hidden');
                     }
-                    const generatedCodeSection = document.getElementById('generatedCodeSection');
-                    if (generatedCodeSection) {
-                        const h3 = generatedCodeSection.querySelector('h3');
+                    if (generatedSection) {
+                        const h3 = generatedSection.querySelector('h3');
                         if (h3) h3.innerHTML = '<i class="fas fa-wand-magic-sparkles text-sky-400 mr-2"></i>AI Rewritten Version';
                     }
-                    const generationPlaceholder = document.getElementById('generationPlaceholder');
-                    if (generationPlaceholder) generationPlaceholder.classList.add('hidden');
-                });
-                
-                // Generation Mode
-                btnGenerate.addEventListener('click', function(e) {
-                   console.log('btnGenerate clicked');  
-                    e.stopPropagation();
                     
-                    // Show/hide panels
-                    panelAnalysis.classList.add('hidden');
-                    panelGeneration.classList.remove('hidden');
-                    panelAdvanced.classList.add('hidden');
-                    
-                    // Update button styles
-                    btnAnalysis.classList.remove('active', 'bg-sky-600', 'border-sky-600', 'text-white');
-                    btnAnalysis.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnGenerate.classList.add('active', 'bg-emerald-600', 'border-emerald-600', 'text-white');
-                    btnGenerate.classList.remove('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnAdvanced.classList.remove('active', 'bg-purple-600', 'border-purple-600', 'text-white');
-                    btnAdvanced.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    
-                    // Adjust code display for generation mode
-                    const originalCodeSection = document.getElementById('originalCodeSection');
-                    if (originalCodeSection) originalCodeSection.style.display = 'none';
-                    const codeDisplaySection = document.getElementById('codeDisplaySection');
-                    if (codeDisplaySection) {
-                        codeDisplaySection.classList.remove('lg:grid-cols-2');
-                        codeDisplaySection.classList.add('lg:grid-cols-1');
-                        codeDisplaySection.classList.remove('hidden');
+                    if (originalOutput) {
+                        originalOutput.textContent = code;
+                        if (typeof hljs !== 'undefined') hljs.highlightElement(originalOutput);
                     }
-                    const generatedCodeSection = document.getElementById('generatedCodeSection');
-                    if (generatedCodeSection) {
-                        const h3 = generatedCodeSection.querySelector('h3');
-                        if (h3) h3.innerHTML = '<i class="fas fa-sparkles text-emerald-400 mr-2"></i>Generated Code';
-                    }
-                    const generationPlaceholder = document.getElementById('generationPlaceholder');
-                    if (generationPlaceholder) generationPlaceholder.classList.add('hidden');
 
-                });
-                
-                // Advanced Settings Mode
-                btnAdvanced.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    
-                    // Show/hide panels
-                    panelAnalysis.classList.add('hidden');
-                    panelGeneration.classList.add('hidden');
-                    panelAdvanced.classList.remove('hidden');
-                    
-                    // Update button styles
-                    btnAnalysis.classList.remove('active', 'bg-sky-600', 'border-sky-600', 'text-white');
-                    btnAnalysis.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnGenerate.classList.remove('active', 'bg-emerald-600', 'border-emerald-600', 'text-white');
-                    btnGenerate.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnAdvanced.classList.remove('bg-slate-700', 'border-slate-700', 'text-slate-300');
-                    btnAdvanced.classList.add('active', 'bg-purple-600', 'border-purple-600', 'text-white');
-                    
-                    showToast('📊 Advanced Settings loaded', 'info');
-                    loadPerformanceMetrics().catch(err => console.error('Metrics error:', err));
-                });
-                
-                console.log('✅ Mode buttons initialized successfully');
-            };
-            
-            // Call after DOM is ready
-            setupModeButtons();
-            
-            // 1. PERFORMANCE METRICS
-            const loadPerformanceMetrics = async () => {
-                try {
-                    const res = await fetch('http://localhost:8000/api/performance/metrics');
-                    const data = await res.json();
-                    document.getElementById('avgResponseTime').textContent = data.average_response_time_ms + 'ms';
-                    document.getElementById('activeSessions').textContent = data.active_sessions;
-                    document.getElementById('dailyUsage').textContent = '450 / 1000';
-                } catch (err) {
-                    console.log('Performance metrics unavailable');
-                }
-            };
-            
-            document.getElementById('refreshMetricsBtn')?.addEventListener('click', async () => {
-                showToast('🔄 Refreshing metrics...', 'info');
-                await loadPerformanceMetrics();
-                showToast('✅ Metrics updated', 'success');
-            });
-            
-            // 2. AI MODEL SELECTOR
-            const modelSelector = document.getElementById('modelSelector');
-            modelSelector?.addEventListener('change', async () => {
-                const selectedModel = modelSelector.value;
-                const user = new URLSearchParams(window.location.search).get('email') || 'default';
-                
-                try {
-                    const res = await fetch('http://localhost:8000/api/models/select', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ user, model: selectedModel })
-                    });
-                    const data = await res.json();
-                    showToast(`🧠 Switched to ${data.message.split('to ')[1]}`, 'success');
-                } catch (err) {
-                    showToast('Error switching model', 'error');
-                }
-            });
-            
-            // 3. WEBHOOK MANAGEMENT
-            document.getElementById('registerWebhookBtn')?.addEventListener('click', async () => {
-                const webhookUrl = document.getElementById('webhookUrl').value.trim();
-                if (!webhookUrl) {
-                    showToast('Enter webhook URL', 'warning');
-                    return;
-                }
-                
-                const user = new URLSearchParams(window.location.search).get('email') || 'default';
-                try {
-                    const res = await fetch('http://localhost:8000/api/webhooks/register', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            user, 
-                            webhook_url: webhookUrl,
-                            events: ['review_complete', 'generation_complete']
-                        })
-                    });
-                    const data = await res.json();
-                    document.getElementById('webhookUrl').value = '';
-                    showToast(`🪝 Webhook registered: ${data.webhook_id}`, 'success');
-                } catch (err) {
-                    showToast('Webhook registration failed', 'error');
-                }
-            });
-            
-            // 4. CODE TEMPLATES LOADER
-            document.getElementById('loadTemplateBtn')?.addEventListener('click', async () => {
-                const language = document.getElementById('templateLanguage').value;
-                const category = document.getElementById('templateCategory').value;
-                
-                try {
-                    const res = await fetch(`http://localhost:8000/api/templates/advanced/${language}`);
-                    const data = await res.json();
-                    
-                    const templates = data.advanced_templates[category] || {};
-                    const templateList = Object.entries(templates)
-                        .map(([name, code]) => `<strong>${name}:</strong><pre>${code}</pre>`)
-                        .join('<hr>');
-                    
-                    if (templateList) {
-                        const feedback = document.getElementById('reviewFeedback');
-                        feedback.innerHTML = `<h4 class="text-cyan-400 font-bold mb-3">${language.toUpperCase()} - ${category.toUpperCase()}</h4>${templateList}`;
-                        showToast(`📚 Templates loaded for ${language}`, 'success');
-                    } else {
-                        showToast('No templates available', 'warning');
+                    if (feedback) feedback.innerHTML = `<div class='animate-pulse text-sky-400'><i class='fas fa-spinner fa-spin'></i> Processing as ${userType}...</div>`;
+
+                    try {
+                        const endpoint = action === 'review' ? 'review' : 'rewrite';
+                        const model = get('modelSelector') ? get('modelSelector').value : 'llama-3.3-70b';
+                        const response = await fetch(`http://localhost:8000/api/${endpoint}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: code,
+                                language: language,
+                                user_type: userType,
+                                student_name: studentName,
+                                focus_areas: focusAreas,
+                                model: model
+                            })
+                        });
+
+                        if (!response.ok) throw new Error("Server Error: " + response.status);
+                        const data = await response.json();
+
+                        // Update Stats
+                        if (get('critical-count')) get('critical-count').innerText = data.stats?.critical || 0;
+                        if (get('high-count')) get('high-count').innerText = data.stats?.high || 0;
+                        if (get('medium-count')) get('medium-count').innerText = data.stats?.medium || 0;
+                        if (get('low-count')) get('low-count').innerText = data.stats?.low || 0;
+
+                        if (userType === 'student') {
+                            if (get('plag-score')) get('plag-score').innerText = data.plagiarism || "0%";
+                            if (get('review-count')) get('review-count').innerText = data.student_stats || 0;
+                        }
+
+                        if (feedback) feedback.innerHTML = typeof marked !== 'undefined' ? marked.parse(data.review) : data.review;
+                        
+                        if (action === 'fix') {
+                            const rwOut = get('rewrittenCodeOutput');
+                            if (rwOut) {
+                                rwOut.textContent = data.rewritten_code;
+                                if (typeof hljs !== 'undefined') hljs.highlightElement(rwOut);
+                            }
+                            
+                            if (get('complexity-section')) get('complexity-section').classList.remove('hidden');
+                            if (get('original-complexity-display')) get('original-complexity-display').innerText = data.time_complexity_original || "O(n)";
+                            if (get('rewritten-complexity-display')) get('rewritten-complexity-display').innerText = data.time_complexity_rewritten || "O(n)";
+                            
+                            if (get('download-section')) get('download-section').classList.remove('hidden');
+                            if (get('downloadCodeBtn')) get('downloadCodeBtn').classList.remove('hidden');
+                            if (get('toggleDiffBtn')) get('toggleDiffBtn').classList.remove('hidden');
+
+                            // Save data for downloads
+                            window.downloadData = {
+                                code: data.rewritten_code,
+                                review: data.review,
+                                language: language,
+                                originalCode: code,
+                                stats: data.stats,
+                                complexity_original: data.time_complexity_original || "O(n)",
+                                complexity_rewritten: data.time_complexity_rewritten || "O(n)"
+                            };
+                        }
+                        if (typeof hljs !== 'undefined') hljs.highlightAll();
+                        showToast(`✅ ${action === 'review' ? 'Review' : 'Rewrite'} Complete`, 'success');
+
+                    } catch (err) {
+                        if (feedback) feedback.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
+                        showToast("Operation failed: " + err.message, "error");
                     }
-                } catch (err) {
-                    showToast('Templates failed to load', 'error');
                 }
-            });
-            
-            showToast('🚀 Stage 3 Features Ready: Performance Metrics, AI Model Selector, Webhooks, Advanced Templates, & Quota Tracking', 'info', 6000);
-        });
+
+                // --- 4. EVENT LISTENERS ---
+
+                // OCR
+                setChange('ocrFile', async (e) => {
+                    if (!e.target.files[0]) return;
+                    
+                    const codeInput = get('codeInput');
+                    if (!codeInput) return;
+
+                    const originalValue = codeInput.value;
+                    codeInput.value = "⏳ Scanning image... please wait...";
+                    codeInput.disabled = true;
+                    
+                    // Switch to Analysis Mode
+                    const modeAnalysis = get('modeAnalysis');
+                    if (modeAnalysis) modeAnalysis.click();
+
+                    try {
+                        // 1. Try Client-Side OCR
+                        if (typeof Tesseract !== 'undefined') {
+                            const worker = await Tesseract.createWorker('eng');
+                            const ret = await worker.recognize(e.target.files[0]);
+                            await worker.terminate();
+                            
+                            if (ret.data.text) {
+                                codeInput.value = ret.data.text;
+                                showToast('✅ OCR Complete (Client-side)', 'success');
+                                return; // Success
+                            }
+                        }
+                        throw new Error("Client OCR skipped or failed");
+
+                    } catch (err) { 
+                        console.warn("Client OCR failed, trying backend...", err);
+                        // 2. Fallback to Backend
+                        const formData = new FormData();
+                        formData.append('file', e.target.files[0]);
+                        try {
+                            const res = await fetch('http://localhost:8000/api/ocr', { method: 'POST', body: formData });
+                            if (!res.ok) throw new Error("Backend OCR Failed");
+                            const data = await res.json();
+                            codeInput.value = data.extracted_code || "// No code detected";
+                            showToast('✅ OCR Complete (Server-side)', 'success');
+                        } catch (serverErr) {
+                            alert("OCR Failed: " + serverErr.message);
+                            codeInput.value = originalValue;
+                        }
+                    } finally {
+                        codeInput.disabled = false;
+                        e.target.value = ''; 
+                    }
+                });
+
+                // Policy Upload
+                setChange('policyFile', async (e) => {
+                    if (!e.target.files[0]) return;
+                    const formData = new FormData();
+                    formData.append('file', e.target.files[0]);
+                    try {
+                        const res = await fetch('http://localhost:8000/api/upload-policy', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        showToast(data.message, 'success');
+                    } catch (err) { showToast("Upload failed", "error"); }
+                });
+
+                // Buttons
+                setClick('reviewBtn', () => processCode('review'));
+                setClick('fixBtn', () => processCode('fix'));
+
+                // Generate Code
+                setClick('generateBtn', async () => {
+                    const promptInput = get('generationPrompt');
+                    if (!promptInput) return;
+                    
+                    const prompt = promptInput.value.trim();
+                    if (!prompt) {
+                        showToast("Please describe what code you want to generate!", "warning");
+                        return;
+                    }
+
+                    const language = get('generationLanguage') ? get('generationLanguage').value : 'python';
+                    const style = get('generationStyle') ? get('generationStyle').value : 'production';
+                    
+                    const feedback = get('reviewFeedback');
+                    const model = get('modelSelector') ? get('modelSelector').value : 'llama-3.3-70b';
+                    if (feedback) feedback.innerHTML = `<div class='animate-pulse text-emerald-400'><i class='fas fa-spinner fa-spin'></i> Generating ${language} code...</div>`;
+
+                    try {
+                        const styleMap = {
+                            'production': 'Optimized production code',
+                            'educational': 'Well-commented code for learning',
+                            'compact': 'Minimal and compact code',
+                            'verbose': 'Detailed and verbose code'
+                        };
+
+                        const response = await fetch(`http://localhost:8000/api/generate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                prompt: `${styleMap[style]}: ${prompt}`,
+                                language: language,
+                                user_type: userType,
+                                model: model
+                            })
+                        });
+
+                        if (!response.ok) throw new Error("Code generation failed");
+                        const data = await response.json();
+                        const generatedCode = data.generated_code || '';
+                        
+                        // UI Updates
+                        const codeDisplaySection = get('codeDisplaySection');
+                        const generationPlaceholder = get('generationPlaceholder');
+                        const originalSection = get('originalCodeSection');
+                        const generatedSection = get('generatedCodeSection');
+                        const codeElement = get('rewrittenCodeOutput');
+                        const complexitySection = get('complexity-section');
+                        const downloadSection = get('download-section');
+                        const downloadBtn = get('downloadCodeBtn');
+                        const diffBtn = get('toggleDiffBtn');
+
+                        if (generationPlaceholder) generationPlaceholder.classList.add('hidden');
+                        if (codeDisplaySection) {
+                            codeDisplaySection.classList.remove('hidden');
+                            codeDisplaySection.classList.remove('lg:grid-cols-2');
+                            codeDisplaySection.classList.add('lg:grid-cols-1');
+                        }
+                        if (originalSection) originalSection.style.display = 'none';
+                        
+                        if (generatedSection) {
+                            const h3 = generatedSection.querySelector('h3');
+                            if (h3) h3.innerHTML = '<i class="fas fa-sparkles text-emerald-400 mr-2"></i>Generated Code';
+                        }
+                        
+                        if (codeElement) {
+                            codeElement.textContent = generatedCode;
+                            codeElement.className = `language-${language}`;
+                            if (typeof hljs !== 'undefined') hljs.highlightElement(codeElement);
+                        }
+
+                        if (complexitySection) complexitySection.classList.add('hidden');
+
+                        if (feedback) {
+                            feedback.innerHTML = `<div class='bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4 mb-4'>
+                                <p class='text-emerald-400 font-bold'><i class='fas fa-check-circle mr-2'></i>Code Generated Successfully!</p>
+                                <p class='text-emerald-300 text-sm mt-1'>Language: <strong>${language.toUpperCase()}</strong> | Style: <strong>${style}</strong></p>
+                            </div>`;
+                        }
+
+                        if (downloadSection) downloadSection.classList.remove('hidden');
+                        if (downloadBtn) downloadBtn.classList.remove('hidden');
+                        if (diffBtn) diffBtn.classList.add('hidden');
+
+                        showToast('✅ Code generated! Advanced tools ready', 'success');
+                        
+                        // Show advanced features
+                        const advFeatures = get('advanced-features');
+                        if (advFeatures) {
+                            setTimeout(() => advFeatures.classList.remove('hidden'), 1000);
+                        }
+
+                        // Save for downloads
+                        window.downloadData = {
+                            code: generatedCode,
+                            review: `Generated ${language} code\n\nPrompt: ${prompt}`,
+                            language: language,
+                            originalCode: generatedCode,
+                            stats: { critical: 0, high: 0, medium: 0, low: 0 },
+                            complexity_original: "Fresh",
+                            complexity_rewritten: generatedCode ? "Generated" : "N/A"
+                        };
+
+                        if (typeof hljs !== 'undefined') hljs.highlightAll();
+
+                    } catch (err) {
+                        if (feedback) feedback.innerHTML = `<p class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${err.message}</p>`;
+                        showToast("Generation failed", "error");
+                    }
+                });
+
+                // Copy Button
+                setClick('copyBtn', function() {
+                    const output = get('rewrittenCodeOutput');
+                    if (output) {
+                        navigator.clipboard.writeText(output.textContent);
+                        const btn = get('copyBtn');
+                        if (btn) {
+                            const originalHtml = btn.innerHTML;
+                            btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                            setTimeout(() => btn.innerHTML = originalHtml, 2000);
+                        }
+                        showToast("Code copied to clipboard", "success");
+                    }
+                });
+
+                // Downloads
+                const triggerDownload = (blob, filename) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = filename;
+                    document.body.appendChild(a); a.click();
+                    window.URL.revokeObjectURL(url); a.remove();
+                };
+
+                setClick('downloadCodeFileBtn', () => {
+                    if (!window.downloadData) return showToast('Run Auto-Rewrite first', 'warning');
+                    const extMap = { 'python': 'py', 'java': 'java', 'javascript': 'js', 'cpp': 'cpp' };
+                    const ext = extMap[window.downloadData.language] || 'txt';
+                    const blob = new Blob([window.downloadData.code], { type: 'text/plain' });
+                    triggerDownload(blob, `refactored_code.${ext}`);
+                });
+
+                setClick('downloadSummaryBtn', async () => {
+                    if (!window.downloadData) return showToast('Run Auto-Rewrite first', 'warning');
+                    const formatEl = document.querySelector('input[name="downloadFormat"]:checked');
+                    const format = formatEl ? formatEl.value : 'docx';
+                    
+                    try {
+                        const res = await fetch('http://localhost:8000/api/download/summary', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ format, review: window.downloadData.review, stats: window.downloadData.stats })
+                        });
+                        if (res.ok) triggerDownload(await res.blob(), `summary.${format}`);
+                        else throw new Error("Download failed");
+                    } catch (e) { showToast("Download failed", "error"); }
+                });
+
+                setClick('downloadReportBtn', async () => {
+                    if (!window.downloadData) return showToast('Run Auto-Rewrite first', 'warning');
+                    const formatEl = document.querySelector('input[name="downloadFormat"]:checked');
+                    const format = formatEl ? formatEl.value : 'docx';
+                    
+                    try {
+                        const res = await fetch('http://localhost:8000/api/download/report', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                format, ...window.downloadData,
+                                original_code: window.downloadData.originalCode,
+                                rewritten_code: window.downloadData.code
+                            })
+                        });
+                        if (res.ok) triggerDownload(await res.blob(), `report.${format}`);
+                        else throw new Error("Download failed");
+                    } catch (e) { showToast("Download failed", "error"); }
+                });
+                
+                // Mode Switching - UNIFIED HANDLER
+                const setupModeButtons = () => {
+                    const btnAnalysis = get('modeAnalysis');
+                    const btnGenerate = get('modeGenerate');
+                    const btnAdvanced = get('modeAdvanced');
+                    
+                    const panelAnalysis = get('analysis-panel');
+                    const panelGeneration = get('generation-panel');
+                    const panelAdvanced = get('advanced-panel');
+                    
+                    const setActive = (btn) => {
+                        [btnAnalysis, btnGenerate, btnAdvanced].forEach(b => {
+                            if (b) {
+                                b.classList.remove('active', 'bg-sky-600', 'border-sky-600', 'bg-emerald-600', 'border-emerald-600', 'bg-purple-600', 'border-purple-600', 'text-white');
+                                b.classList.add('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                            }
+                        });
+                        if (btn) {
+                            btn.classList.remove('bg-slate-700', 'border-slate-700', 'text-slate-300');
+                            btn.classList.add('active', 'text-white');
+                            if (btn === btnAnalysis) btn.classList.add('bg-sky-600', 'border-sky-600');
+                            if (btn === btnGenerate) btn.classList.add('bg-emerald-600', 'border-emerald-600');
+                            if (btn === btnAdvanced) btn.classList.add('bg-purple-600', 'border-purple-600');
+                        }
+                    };
+
+                    if (btnAnalysis) {
+                        btnAnalysis.addEventListener('click', (e) => {
+                            if(e) e.preventDefault();
+                            if (panelAnalysis) panelAnalysis.classList.remove('hidden');
+                            if (panelGeneration) panelGeneration.classList.add('hidden');
+                            if (panelAdvanced) panelAdvanced.classList.add('hidden');
+                            setActive(btnAnalysis);
+                            
+                            // Reset view
+                            const originalSection = get('originalCodeSection');
+                            if (originalSection) originalSection.style.display = 'block';
+                            const codeDisplaySection = get('codeDisplaySection');
+                            if (codeDisplaySection) {
+                                codeDisplaySection.classList.remove('lg:grid-cols-1');
+                                codeDisplaySection.classList.add('lg:grid-cols-2');
+                                codeDisplaySection.classList.remove('hidden');
+                            }
+                        });
+                    }
+
+                    if (btnGenerate) {
+                        btnGenerate.addEventListener('click', (e) => {
+                            if(e) e.preventDefault();
+                            if (panelAnalysis) panelAnalysis.classList.add('hidden');
+                            if (panelGeneration) panelGeneration.classList.remove('hidden');
+                            if (panelAdvanced) panelAdvanced.classList.add('hidden');
+                            setActive(btnGenerate);
+                            
+                            // Reset view
+                            const originalSection = get('originalCodeSection');
+                            if (originalSection) originalSection.style.display = 'none';
+                            const codeDisplaySection = get('codeDisplaySection');
+                            if (codeDisplaySection) {
+                                codeDisplaySection.classList.remove('lg:grid-cols-2');
+                                codeDisplaySection.classList.add('lg:grid-cols-1');
+                                codeDisplaySection.classList.remove('hidden');
+                            }
+                        });
+                    }
+
+                    if (btnAdvanced) {
+                        btnAdvanced.addEventListener('click', (e) => {
+                            if(e) e.preventDefault();
+                            if (panelAnalysis) panelAnalysis.classList.add('hidden');
+                            if (panelGeneration) panelGeneration.classList.add('hidden');
+                            if (panelAdvanced) panelAdvanced.classList.remove('hidden');
+                            setActive(btnAdvanced);
+                            showToast('📊 Advanced Settings loaded', 'info');
+                        });
+                    }
+                };
+                setupModeButtons();
+
+                // Advanced Features
+                setClick('generateTestsBtn', async () => {
+                    if (!window.downloadData) return showToast('Generate or analyze code first', 'warning');
+                    const feedback = get('reviewFeedback');
+                    if (feedback) feedback.innerHTML = '<p class="text-blue-400"><i class="fas fa-spinner animate-spin mr-2"></i>Generating tests...</p>';
+                    try {
+                        const res = await fetch('http://localhost:8000/api/generate-tests', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                        });
+                        const data = await res.json();
+                        if (feedback) feedback.innerHTML = `<h4 class="text-emerald-400 font-bold mb-2">Unit Tests</h4><pre class="bg-slate-800 p-3 rounded text-sm overflow-auto max-h-96"><code>${data.tests.replace(/</g, '&lt;')}</code></pre>`;
+                    } catch (e) { showToast("Test generation failed", "error"); }
+                });
+
+                setClick('generateDocsBtn', async () => {
+                    if (!window.downloadData) return showToast('Generate or analyze code first', 'warning');
+                    const feedback = get('reviewFeedback');
+                    if (feedback) feedback.innerHTML = '<p class="text-blue-400"><i class="fas fa-spinner animate-spin mr-2"></i>Generating docs...</p>';
+                    try {
+                        const res = await fetch('http://localhost:8000/api/generate-docs', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                        });
+                        const data = await res.json();
+                        if (feedback) feedback.innerHTML = `<h4 class="text-blue-400 font-bold mb-2">Documentation</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto">${typeof marked !== 'undefined' ? marked.parse(data.documentation) : data.documentation}</div>`;
+                    } catch (e) { showToast("Docs generation failed", "error"); }
+                });
+
+                setClick('securityScanBtn', async () => {
+                    if (!window.downloadData) return showToast('Generate or analyze code first', 'warning');
+                    const feedback = get('reviewFeedback');
+                    if (feedback) feedback.innerHTML = '<p class="text-yellow-400"><i class="fas fa-spinner animate-spin mr-2"></i>Scanning...</p>';
+                    try {
+                        const res = await fetch('http://localhost:8000/api/security-scan', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                        });
+                        const data = await res.json();
+                        if (feedback) feedback.innerHTML = `<h4 class="text-red-400 font-bold mb-2">Security Analysis</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto whitespace-pre-wrap text-sm">${data.security_analysis.replace(/</g, '&lt;')}</div>`;
+                    } catch (e) { showToast("Security scan failed", "error"); }
+                });
+
+                setClick('refactorSuggestionsBtn', async () => {
+                    if (!window.downloadData) return showToast('Generate or analyze code first', 'warning');
+                    const feedback = get('reviewFeedback');
+                    if (feedback) feedback.innerHTML = '<p class="text-purple-400"><i class="fas fa-spinner animate-spin mr-2"></i>Analyzing...</p>';
+                    try {
+                        const res = await fetch('http://localhost:8000/api/refactor-suggestions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                        });
+                        const data = await res.json();
+                        if (feedback) feedback.innerHTML = `<h4 class="text-purple-400 font-bold mb-2">Refactoring Suggestions</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto">${typeof marked !== 'undefined' ? marked.parse(data.refactoring_suggestions) : data.refactoring_suggestions}</div>`;
+                    } catch (e) { showToast("Analysis failed", "error"); }
+                });
+
+                setClick('saveSnippetBtn', () => {
+                    if (!window.downloadData) return showToast('Generate or analyze code first', 'warning');
+                    const title = prompt('Snippet title:', 'My Code Snippet');
+                    if (!title) return;
+                    
+                    fetch('http://localhost:8000/api/snippets/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user: userType, title, code: window.downloadData.code, language: window.downloadData.language })
+                    }).then(res => res.json()).then(data => {
+                        showToast(`✅ Snippet saved as #${data.snippet_id}`, 'success');
+                    }).catch(err => showToast("Save failed", "error"));
+                });
+
+                setClick('viewHistoryBtn', async () => {
+                    const feedback = get('reviewFeedback');
+                    try {
+                        const res = await fetch(`http://localhost:8000/api/history/${userType}`);
+                        const data = await res.json();
+                        if (data.history.length === 0) {
+                            if (feedback) feedback.innerHTML = '<p class="text-slate-400">No version history yet.</p>';
+                            return;
+                        }
+                        let html = `<h4 class="text-cyan-400 font-bold mb-2">Code History (${data.total_versions} versions)</h4>`;
+                        data.history.forEach(v => {
+                            html += `<div class="bg-slate-700 p-2 rounded mb-2"><p class="text-sm text-cyan-300">Version ${v.version} - ${v.action} (${new Date(v.timestamp).toLocaleString()})</p></div>`;
+                        });
+                        if (feedback) feedback.innerHTML = html;
+                    } catch (e) { showToast("History fetch failed", "error"); }
+                });
+
+                // Diff View
+                setClick('toggleDiffBtn', () => {
+                    const codeSection = get('codeDisplaySection');
+                    const diffContainer = get('diffViewContainer');
+                    
+                    if (diffContainer && diffContainer.classList.contains('hidden')) {
+                        if (!window.downloadData || !window.downloadData.originalCode) return showToast('No code to diff', 'warning');
+                        
+                        if (typeof Diff !== 'undefined' && typeof Diff2HtmlUI !== 'undefined') {
+                            const diffStr = Diff.createTwoFilesPatch("Original", "Rewritten", window.downloadData.originalCode, window.downloadData.code);
+                            const ui = new Diff2HtmlUI(diffContainer, diffStr, {
+                                drawFileList: false,
+                                matching: 'lines',
+                                outputFormat: 'side-by-side'
+                            });
+                            
+                            if (codeSection) codeSection.classList.add('hidden');
+                            diffContainer.classList.remove('hidden');
+                            ui.draw();
+                        } else {
+                            showToast("Diff library not loaded", "error");
+                        }
+                    } else {
+                        if (codeSection) codeSection.classList.remove('hidden');
+                        if (diffContainer) diffContainer.classList.add('hidden');
+                    }
+                });
+
+                // Theme Toggle
+                const themeToggle = get('theme-toggle');
+                if (themeToggle) {
+                    const savedTheme = localStorage.getItem('theme') || 'dark';
+                    document.body.classList.toggle('light-mode', savedTheme === 'light');
+                    themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+                    
+                    themeToggle.onclick = () => {
+                        const isLight = document.body.classList.toggle('light-mode');
+                        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                        themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+                        showToast(`Switched to ${isLight ? 'Light' : 'Dark'} mode`, 'success');
+                    };
+                }
+
+                // Search
+                const searchBox = get('search-results');
+                if (searchBox) {
+                    searchBox.oninput = () => {
+                        const query = searchBox.value.toLowerCase();
+                        const feedback = get('reviewFeedback');
+                        if (!feedback) return;
+                        
+                        if (!query) {
+                            feedback.classList.remove('search-highlight');
+                            return;
+                        }
+                        
+                        if (feedback.innerText.toLowerCase().includes(query)) {
+                            feedback.classList.add('search-highlight');
+                        } else {
+                            feedback.classList.remove('search-highlight');
+                        }
+                    };
+                }
+
+                // Drag & Drop
+                const setupDragDrop = () => {
+                    const dropZone = document.querySelector('.dropzone');
+                    if (!dropZone) return;
+                    
+                    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                    });
+                    
+                    ['dragenter', 'dragover'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'));
+                    });
+                    
+                    ['dragleave', 'drop'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
+                    });
+                    
+                    dropZone.addEventListener('drop', (e) => {
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0) {
+                            const file = files[0];
+                            if (file.type.startsWith('text') || file.name.endsWith('.py') || file.name.endsWith('.js') || file.name.endsWith('.java') || file.name.endsWith('.cpp')) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                    dropZone.value = event.target.result;
+                                    showToast(`✅ File uploaded: ${file.name}`, 'success');
+                                };
+                                reader.readAsText(file);
+                            } else {
+                                showToast('❌ Please drop valid code files', 'error');
+                            }
+                        }
+                    });
+                };
+                setupDragDrop();
+
+                // Keyboard Shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        const btn = get('reviewBtn');
+                        if (btn) btn.click();
+                    } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                        e.preventDefault();
+                        const btn = get('generateBtn');
+                        if (btn) btn.click();
+                    } else if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                        e.preventDefault();
+                        const search = get('search-results');
+                        if (search) {
+                            search.classList.toggle('hidden');
+                            if (!search.classList.contains('hidden')) search.focus();
+                        }
+                    }
+                });
+
+                // Tooltips
+                const rBtn = get('reviewBtn');
+                if (rBtn) rBtn.title = "Run Review (Ctrl+Enter)";
+                const gBtn = get('generateBtn');
+                if (gBtn) gBtn.title = "Generate Code (Ctrl+G)";
+
+                console.log("✅ Code Refine: Initialization Complete");
+
+            } catch (criticalError) {
+                console.error("CRITICAL INIT ERROR:", criticalError);
+                alert("Application failed to initialize. Check console for details.");
+            }
+        };
+
+        // Run Init
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
     </script>
 </body>
 </html>

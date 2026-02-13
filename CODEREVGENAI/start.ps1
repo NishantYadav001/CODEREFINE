@@ -36,7 +36,7 @@ Write-Host "Demo Credentials:" -ForegroundColor White
 Write-Host "  Username: admin" -ForegroundColor Green
 Write-Host "  Password: password" -ForegroundColor Green
 Write-Host ""
-Write-Host "Or try: student1 / teacher with same password" -ForegroundColor Yellow
+Write-Host "Or try: student / developer with same password" -ForegroundColor Yellow
 Write-Host "==========================================" -ForegroundColor Yellow
 Write-Host ""
 
