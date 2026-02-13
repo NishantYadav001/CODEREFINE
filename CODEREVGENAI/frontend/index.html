@@ -5,11 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <!-- Mermaid JS for Flowcharts -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <!-- IDB for IndexedDB Persistence -->
+    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+    <!-- Prettier for Code Formatting -->
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/standalone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/estree.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/babel.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/html.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/postcss.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/yaml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/markdown.js"></script>
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <!-- Diff View Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
@@ -133,6 +148,32 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+
+        /* Terminal Output */
+        .terminal-window {
+            font-family: 'Fira Code', monospace;
+            background-color: #0f172a; /* Slate 900 */
+            border: 1px solid #334155;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { bg: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Mobile View Utilities */
+        .mobile-hidden { display: none !important; }
+        @media (min-width: 1024px) {
+            .mobile-hidden { display: block !important; }
+        }
+
+        /* File Tree Styles */
+        .file-tree-item { cursor: pointer; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; }
+        .file-tree-item:hover { background-color: #334155; color: #fff; }
+        .file-tree-item.active { background-color: #0ea5e9; color: #fff; }
+        .folder-content { padding-left: 16px; border-left: 1px solid #334155; margin-left: 7px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-50 min-h-screen">
@@ -157,15 +198,58 @@
                 <button id="theme-toggle" title="Toggle dark/light mode" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
                     <i class="fas fa-moon text-yellow-400"></i>
                 </button>
+                <button id="settings-btn" title="Editor Settings" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
+                    <i class="fas fa-cog text-slate-400"></i>
+                </button>
+                <button id="shortcuts-btn" title="Keyboard Shortcuts" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
+                    <i class="fas fa-keyboard text-slate-400"></i>
+                </button>
                 <span id="user-badge" class="px-3 py-1 rounded-full bg-slate-700 text-xs font-bold border border-slate-600">Standard</span>
                 <a href="/" class="text-slate-400 hover:text-white transition-colors"><i class="fas fa-sign-out-alt"></i></a>
             </div>
         </div>
     </nav>
 
-    <div class="container mx-auto p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="space-y-4">
+    <!-- Main Layout: Sidebar + Content -->
+    <div class="flex h-[calc(100vh-64px)] overflow-hidden">
+        
+        <!-- File Explorer Sidebar -->
+        <aside class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col hidden md:flex">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Explorer</span>
+                <div class="flex gap-2">
+                    <button id="refreshExplorerBtn" class="text-slate-400 hover:text-white" title="Refresh"><i class="fas fa-sync-alt text-xs"></i></button>
+                    <button id="closeFolderBtn" class="text-slate-400 hover:text-red-400" title="Close Folder"><i class="fas fa-times text-xs"></i></button>
+                </div>
+            </div>
+            
+            <div id="fileExplorer" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Empty State -->
+                <div id="emptyExplorer" class="text-center mt-10 px-4">
+                    <div class="text-slate-600 text-4xl mb-3"><i class="fas fa-folder-open"></i></div>
+                    <p class="text-slate-400 text-sm mb-4">No folder opened</p>
+                    <button id="sidebarOpenBtn" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all">
+                        Open Folder
+                    </button>
+                </div>
+                <!-- Tree will be injected here -->
+                <div id="fileTreeContent" class="hidden"></div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="flex-1 overflow-y-auto p-6 bg-slate-900 relative">
+            <div class="container mx-auto max-w-7xl">
+        <!-- Mobile Tab Navigation -->
+        <div class="lg:hidden flex mb-4 bg-slate-800 rounded-xl p-1 border border-slate-700">
+            <button id="mobile-tab-editor" class="flex-1 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition-all">Editor</button>
+            <button id="mobile-tab-output" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all">Output</button>
+            <button id="mobile-tab-chat" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all">Chat</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
+            <!-- Left Panel (Editor) -->
+            <div id="left-panel" class="space-y-4 transition-all">
                 
                 <div class="grid grid-cols-1 gap-4">
                     <div id="policy-upload-zone" class="hidden bg-slate-800 p-3 rounded-xl border border-dashed border-sky-500/40">
@@ -187,48 +271,86 @@
                 <!-- Analysis Mode -->
                 <div id="analysis-panel" class="analysis-mode space-y-4">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold flex items-center gap-2">
-                            <i class="fas fa-code text-sky-400"></i> Source Code
-                            <span id="detectedLangDisplay" class="text-xs text-slate-500 ml-2 font-normal hidden"></span>
-                        </h2>
-                    </div>
-                    
-                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
-                            <i class="fas fa-brain text-purple-400 mr-2"></i>AI Model
-                        </label>
-                        <select id="modelSelectorAnalysis" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/50">
-                            <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
-                            <option value="llama-3.1-405b">🦙 Llama 3.1 405B (Most Accurate)</option>
-                            <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B (Fastest)</option>
-                            <option value="gemini-pro">✨ Gemini Pro (Google)</option>
-                        </select>
+                        <div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Workspace</div>
+                        <span id="detectedLangDisplay" class="text-xs text-sky-400 font-mono hidden"></span>
                     </div>
 
-                    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
-                        <label class="text-[10px] font-bold text-slate-400 block mb-2 uppercase italic"><i class="fas fa-camera mr-1"></i> Scan Code from Image</label>
-                        <input type="file" id="ocrFile" accept="image/*" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
-                    </div>
-                    
-                    <textarea id="codeInput" class="code-editor w-full h-80 p-4 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/50 dropzone" placeholder="Enter your code or upload an image...&#10;💡 Tip: Drag & drop code files here or use Keyboard Shortcuts (Ctrl+Enter to Review, Ctrl+G to Generate)"></textarea>
-                    
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <p class="text-sm font-bold mb-3 text-slate-400 uppercase tracking-tighter">Analysis Focus Areas</p>
-                        <div class="flex flex-wrap gap-4 text-sm">
-                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Bugs" checked class="mr-2 accent-sky-500">Bugs</label>
-                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Performance" checked class="mr-2 accent-sky-500">Performance</label>
-                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Security" checked class="mr-2 accent-sky-500">Security</label>
-                            <label class="flex items-center cursor-pointer"><input type="checkbox" name="focusArea" value="Best Practices" checked class="mr-2 accent-sky-500">Best Practices</label>
+                    <!-- Tools & Config Bar -->
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 flex items-center gap-2">
+                            <div class="flex-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1 block">Import Source</label>
+                                <div class="flex gap-2">
+                                    <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 transition-all shadow-sm">
+                                        <i class="fas fa-camera text-sky-400"></i> <span class="hidden sm:inline">Scan Image</span>
+                                        <input type="file" id="ocrFile" accept="image/*" class="hidden">
+                                    </label>
+                                    <div class="flex-1 flex gap-1">
+                                        <input type="text" id="githubUrl" placeholder="GitHub / Raw URL..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-sky-500">
+                                        <button id="loadGithubBtn" class="bg-slate-700 hover:bg-sky-600 text-white px-3 rounded-lg border border-slate-600 transition-colors"><i class="fas fa-arrow-right"></i></button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <button id="reviewBtn" class="btn-primary font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
-                            <i class="fas fa-microscope"></i> Run Review
-                        </button>
-                        <button id="fixBtn" class="bg-slate-700 hover:bg-slate-600 font-bold py-3 px-4 rounded-xl border border-slate-600 flex items-center justify-center gap-2">
-                            <i class="fas fa-wand-magic-sparkles"></i> Auto-Rewrite
-                        </button>
+                    
+                    <!-- Editor Container -->
+                    <div id="editorWrapper" class="border border-slate-700 rounded-xl overflow-hidden bg-slate-900 shadow-lg group">
+                        <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-slate-700">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-code text-slate-400 text-sm"></i>
+                                <span class="text-xs font-bold text-slate-300">Code Editor</span>
+                            </div>
+                            <div class="flex gap-1 flex-wrap justify-end">
+                                <button id="reviewBtn" class="px-2 py-1 text-xs font-bold text-sky-400 hover:text-white hover:bg-sky-600 rounded transition-colors mr-1" title="Run Review (Ctrl+Enter)"><i class="fas fa-microscope mr-1"></i> Review</button>
+                                <button id="fixBtn" class="px-2 py-1 text-xs font-bold text-yellow-400 hover:text-white hover:bg-yellow-600 rounded transition-colors mr-1" title="Auto-Rewrite"><i class="fas fa-wand-magic-sparkles mr-1"></i> Fix</button>
+                                <button id="runCodeBtn" class="px-2 py-1 text-xs font-bold text-emerald-400 hover:text-white hover:bg-emerald-600 rounded transition-colors mr-1" title="Run Code"><i class="fas fa-play mr-1"></i> Run</button>
+                                <button id="visualizeBtn" class="px-2 py-1 text-xs font-bold text-purple-400 hover:text-white hover:bg-purple-600 rounded transition-colors mr-2" title="Visualize Logic"><i class="fas fa-project-diagram mr-1"></i> Viz</button>
+                                <div class="w-px h-4 bg-slate-700 mx-1 self-center hidden sm:block"></div>
+                                <button id="formatBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Format Code"><i class="fas fa-align-left mr-1"></i> Format</button>
+                                <button id="minifyBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Minify Code"><i class="fas fa-compress-arrows-alt mr-1"></i> Minify</button>
+                                <button id="wordWrapBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Toggle Word Wrap"><i class="fas fa-paragraph"></i></button>
+                                <button id="voiceCodeBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Voice Command"><i class="fas fa-microphone"></i></button>
+                                <button id="clearEditorBtn" class="px-2 py-1 text-xs font-medium text-red-400 hover:text-white hover:bg-red-900/50 rounded transition-colors" title="Clear Editor"><i class="fas fa-trash"></i></button>
+                                <button id="fullscreenBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Toggle Fullscreen"><i class="fas fa-expand"></i></button>
+                            </div>
+                        </div>
+                        <div id="monaco-container" class="w-full h-[400px] dropzone"></div>
+                        <div class="bg-slate-800 px-4 py-2 border-t border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+                            <div class="flex items-center gap-3">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-crosshairs text-sky-400 mr-1"></i>Focus:</span>
+                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Bugs" checked class="mr-1.5 accent-sky-500 rounded">Bugs</label>
+                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Performance" checked class="mr-1.5 accent-sky-500 rounded">Performance</label>
+                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Security" checked class="mr-1.5 accent-sky-500 rounded">Security</label>
+                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Best Practices" checked class="mr-1.5 accent-sky-500 rounded">Best Practices</label>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span id="cursorStatus" class="text-[10px] font-mono text-slate-500">Ln 1, Col 1</span>
+                                <select id="editorLang" class="bg-slate-900 border border-slate-600 rounded-lg p-1 text-xs outline-none focus:border-sky-500 text-slate-300 w-24">
+                                    <option value="python">Python</option><option value="javascript">JavaScript</option><option value="typescript">TypeScript</option><option value="java">Java</option><option value="cpp">C++</option><option value="csharp">C#</option><option value="go">Go</option><option value="rust">Rust</option><option value="html">HTML</option><option value="css">CSS</option><option value="json">JSON</option><option value="sql">SQL</option>
+                                </select>
+                                <div class="w-px h-3 bg-slate-700"></div>
+                                <label class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-brain text-purple-400 mr-1"></i>Model:</label>
+                                <select id="modelSelectorAnalysis" class="bg-slate-900 border border-slate-600 rounded-lg p-1 text-xs outline-none focus:border-sky-500 text-slate-300 w-40">
+                                    <option value="llama-3.3-70b">🦙 Llama 3.3 70B</option>
+                                    <option value="llama-3.1-405b">🦙 Llama 3.1 405B</option>
+                                    <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B</option>
+                                    <option value="gemini-pro">✨ Gemini Pro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Execution & Visualization Output -->
+                    <div id="toolsOutputSection" class="hidden space-y-4">
+                        <div id="terminalContainer" class="hidden">
+                            <h3 class="text-xs font-bold text-emerald-400 uppercase mb-2"><i class="fas fa-terminal mr-2"></i>Terminal Output</h3>
+                            <pre id="terminalOutput" class="terminal-window p-4 rounded-xl text-sm text-slate-300 overflow-x-auto min-h-[100px] max-h-[300px] whitespace-pre-wrap">Ready to execute...</pre>
+                        </div>
+                        <div id="visualizerContainer" class="hidden">
+                            <h3 class="text-xs font-bold text-purple-400 uppercase mb-2"><i class="fas fa-sitemap mr-2"></i>Logic Flowchart</h3>
+                            <div id="mermaidOutput" class="bg-white/5 p-4 rounded-xl overflow-x-auto flex justify-center min-h-[200px]"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -260,9 +382,15 @@
                                 <i class="fas fa-microphone"></i>
                             </button>
                         </div>
+                        <div id="quickPrompts" class="flex flex-wrap gap-2 mt-2">
+                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">Create REST API (Python)</button>
+                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">React Component</button>
+                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">SQL Complex Query</button>
+                            <button class="text-[10px] bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-full text-slate-400 hover:text-emerald-400 transition-colors">Regex Pattern</button>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-bold text-slate-300 mb-2">
                                 <i class="fas fa-code text-sky-400 mr-2"></i>Language
@@ -281,6 +409,15 @@
 
                         <div>
                             <label class="block text-sm font-bold text-slate-300 mb-2">
+                                <i class="fas fa-layer-group text-pink-400 mr-2"></i>Framework
+                            </label>
+                            <select id="generationFramework" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
+                                <option value="none">None / Standard Library</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
                                 <i class="fas fa-user-tie text-purple-400 mr-2"></i>Code Style
                             </label>
                             <select id="generationStyle" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
@@ -291,18 +428,32 @@
                             </select>
                         </div>
                     </div>
+                    
+                    <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                        <input type="checkbox" id="includeContext" class="accent-emerald-500 w-5 h-5 cursor-pointer rounded">
+                        <label for="includeContext" class="cursor-pointer">
+                            <div class="text-sm font-bold text-slate-300">Include Editor Context</div>
+                            <div class="text-[10px] text-slate-500">Send code currently in the editor to help the AI understand your project structure.</div>
+                        </label>
+                    </div>
 
                     <button id="generateBtn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-white transition-all transform hover:scale-[1.02] active:scale-95">
                         <i class="fas fa-wand-magic-sparkles"></i> Generate Code
                     </button>
                 </div>
 
-            <div class="flex flex-col">
+            <!-- Right Panel (Output/Chat) -->
+            <div id="right-panel" class="flex flex-col mobile-hidden lg:block">
                 <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-lg font-semibold flex items-center gap-2">
-                        <i class="fas fa-chart-pie text-purple-400"></i> Analysis Results
-                    </h2>
-                    <div id="plagiarism-badge" class="hidden px-3 py-1 bg-orange-900/40 border border-orange-700 rounded-lg">
+                    <div class="flex gap-2 bg-slate-800/50 p-1 rounded-lg border border-slate-700">
+                        <button id="tabResults" class="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-600 text-white shadow-sm transition-all">
+                            <i class="fas fa-chart-pie mr-2"></i>Results
+                        </button>
+                        <button id="tabChat" class="px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+                            <i class="fas fa-comments mr-2"></i>AI Chat
+                        </button>
+                    </div>
+                    <div id="plagiarism-badge" class="hidden px-3 py-1 bg-orange-900/40 border border-orange-700 rounded-lg ml-auto">
                         <span class="text-[10px] text-orange-300 font-bold uppercase">Similarity: </span>
                         <span id="plag-score" class="text-xs font-bold text-white">0%</span>
                     </div>
@@ -329,6 +480,30 @@
                     </div>
                     <div id="reviewFeedback" class="prose prose-invert max-w-none text-slate-300">
                         <p class="italic text-slate-500">Run a review to see AI insights...</p>
+                    </div>
+                </div>
+
+                <!-- Chat Interface -->
+                <div id="chatInterface" class="hidden bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-2xl flex-grow flex flex-col h-[550px]">
+                    <div class="flex justify-end mb-2">
+                        <button id="clearChatBtn" class="text-[10px] uppercase font-bold text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1">
+                            <i class="fas fa-trash-alt"></i> Clear Chat
+                        </button>
+                    </div>
+                    <div id="chatHistory" class="flex-grow overflow-y-auto space-y-4 mb-4 pr-2">
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
+                            <div class="bg-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 border border-slate-600">
+                                Hello! I'm ready to answer questions about your code.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="chatInput" placeholder="Ask a question about the code..." 
+                            class="w-full bg-slate-900/50 border border-slate-600 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-200 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all">
+                        <button id="sendChatBtn" class="absolute right-2 top-2 p-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-all">
+                            <i class="fas fa-paper-plane text-xs"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -494,6 +669,70 @@
                     </button>
                 </div>
             </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md relative transform transition-all scale-100">
+            <button id="closeShortcutsBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-keyboard text-sky-400"></i> Keyboard Shortcuts</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                    <span class="text-slate-300 text-sm">Run Review</span>
+                    <span class="px-2 py-1 bg-slate-600 rounded text-xs font-mono text-white border border-slate-500">Ctrl + Enter</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                    <span class="text-slate-300 text-sm">Generate Code</span>
+                    <span class="px-2 py-1 bg-slate-600 rounded text-xs font-mono text-white border border-slate-500">Ctrl + G</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                    <span class="text-slate-300 text-sm">Format Code</span>
+                    <span class="px-2 py-1 bg-slate-600 rounded text-xs font-mono text-white border border-slate-500">Alt + Shift + F</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fas fa-cog text-slate-400"></i> Editor Settings</h3>
+                <button id="closeSettingsBtn" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-300 mb-2">Font Size</label>
+                    <input type="range" id="settingFontSize" min="10" max="24" value="14" class="w-full accent-sky-500">
+                    <div class="text-right text-xs text-slate-400" id="fontSizeVal">14px</div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-bold text-slate-300">Minimap</label>
+                    <input type="checkbox" id="settingMinimap" class="accent-sky-500 w-5 h-5">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-bold text-slate-300">Word Wrap</label>
+                    <input type="checkbox" id="settingWordWrap" class="accent-sky-500 w-5 h-5">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-bold text-slate-300">Line Numbers</label>
+                    <input type="checkbox" id="settingLineNumbers" checked class="accent-sky-500 w-5 h-5">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div id="commandPalette" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-start justify-center pt-20 backdrop-blur-sm">
+        <div class="bg-slate-800 w-full max-w-lg rounded-xl border border-slate-700 shadow-2xl overflow-hidden">
+            <div class="p-3 border-b border-slate-700 flex items-center gap-3">
+                <i class="fas fa-search text-slate-400"></i>
+                <input type="text" id="cmdInput" placeholder="Type a command..." class="bg-transparent w-full outline-none text-slate-200 placeholder-slate-500">
+                <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-400">ESC</span>
+            </div>
+            <div id="cmdList" class="max-h-64 overflow-y-auto p-2 space-y-1"></div>
         </div>
     </div>
 
@@ -514,6 +753,67 @@
             // Prevent double initialization
             if (window.appInitialized) return;
             window.appInitialized = true;
+
+            // Initialize IndexedDB Store
+            const dbStore = idbKeyval.createStore('coderefine-db', 'workspace-store');
+            window.dbStore = dbStore;
+            window.currentDirHandle = null;
+
+            // Register Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed', err));
+            }
+
+            // Initialize Mermaid
+            mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+            
+            // Initialize Monaco Editor
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+                const savedCode = localStorage.getItem('codeRefine_content') || "# Paste your code here or drag & drop a file\n# Press Ctrl+Enter to Review\n\ndef hello_world():\n    print('Hello Code Refine!')";
+                const savedSettings = JSON.parse(localStorage.getItem('editorSettings')) || { fontSize: 14, minimap: false, wordWrap: 'off', lineNumbers: 'on' };
+
+                window.monacoEditor = monaco.editor.create(document.getElementById('monaco-container'), {
+                    value: savedCode,
+                    language: "python",
+                    theme: "vs-dark",
+                    automaticLayout: true,
+                    minimap: { enabled: savedSettings.minimap },
+                    fontSize: savedSettings.fontSize,
+                    wordWrap: savedSettings.wordWrap,
+                    lineNumbers: savedSettings.lineNumbers,
+                    fontFamily: "'Fira Code', monospace",
+                    scrollBeyondLastLine: false,
+                    padding: { top: 16, bottom: 16 }
+                });
+
+                // Event Listeners for Editor
+                window.monacoEditor.onDidChangeCursorPosition((e) => {
+                    const status = document.getElementById('cursorStatus');
+                    if(status) status.innerText = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+                });
+
+                window.monacoEditor.onDidChangeModelContent(() => {
+                    localStorage.setItem('codeRefine_content', window.monacoEditor.getValue());
+                });
+                
+                // Sync Language Selector
+                const langSelect = document.getElementById('editorLang');
+                if(langSelect) {
+                    langSelect.value = 'python'; // Default
+                    langSelect.onchange = () => monaco.editor.setModelLanguage(window.monacoEditor.getModel(), langSelect.value);
+                }
+
+                // Initialize Settings UI
+                get('settingFontSize').value = savedSettings.fontSize;
+                get('settingMinimap').checked = savedSettings.minimap;
+
+                // Restore Workspace
+                restoreWorkspace();
+            });
+
+            // Fetch Piston Runtimes
+            fetch('https://emkc.org/api/v2/piston/runtimes').then(r => r.json()).then(data => window.pistonRuntimes = data);
 
             console.log("🚀 Code Refine: Initializing...");
 
@@ -601,10 +901,9 @@
 
                 // Process Code (Review or Rewrite)
                 async function processCode(action) {
-                    const codeInput = get('codeInput');
-                    if (!codeInput) return;
+                    // Get code from Monaco
+                    const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
                     
-                    const code = codeInput.value;
                     if (!code.trim()) {
                         showToast("Please paste some code first!", "warning");
                         return;
@@ -733,20 +1032,300 @@
                     }
                 }
 
+                // --- NEW FEATURES: RUN & VISUALIZE ---
+
+                async function runCode() {
+                    const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
+                    if (!code.trim()) return showToast("No code to run!", "warning");
+
+                    const terminalContainer = get('terminalContainer');
+                    const terminalOutput = get('terminalOutput');
+                    const toolsSection = get('toolsOutputSection');
+                    
+                    if(toolsSection) toolsSection.classList.remove('hidden');
+                    if(terminalContainer) terminalContainer.classList.remove('hidden');
+                    if(get('visualizerContainer')) get('visualizerContainer').classList.add('hidden');
+
+                    terminalOutput.innerHTML = '<span class="animate-pulse text-yellow-400">⏳ Compiling and executing...</span>';
+
+                    // Map Monaco language to Piston language
+                    // Monaco: python, javascript, java, cpp, csharp, go, rust, typescript
+                    // Piston needs specific version. We find the first match.
+                    let lang = 'python';
+                    if (window.monacoEditor) {
+                        const modelLang = window.monacoEditor.getModel().getLanguageId();
+                        const monacoToPiston = {
+                            'python': 'python', 'javascript': 'javascript', 'typescript': 'typescript',
+                            'java': 'java', 'cpp': 'c++', 'c': 'c', 'csharp': 'csharp',
+                            'go': 'go', 'rust': 'rust', 'php': 'php', 'ruby': 'ruby'
+                        };
+                        lang = monacoToPiston[modelLang] || modelLang;
+                    }
+
+                    // Find runtime version
+                    const runtime = window.pistonRuntimes ? window.pistonRuntimes.find(r => r.language === lang) : null;
+                    const version = runtime ? runtime.version : "*";
+
+                    try {
+                        const res = await fetch('https://emkc.org/api/v2/piston/execute', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                language: lang,
+                                version: version,
+                                files: [{ content: code }]
+                            })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.run) {
+                            let output = data.run.stdout || "";
+                            let error = data.run.stderr || "";
+                            terminalOutput.innerHTML = "";
+                            if (output) terminalOutput.innerHTML += `<span class="text-emerald-300">${output}</span>`;
+                            if (error) terminalOutput.innerHTML += `<span class="text-red-400">\n${error}</span>`;
+                            if (!output && !error) terminalOutput.innerHTML = `<span class="text-slate-500 italic">Program executed successfully with no output.</span>`;
+                        } else {
+                            terminalOutput.innerHTML = `<span class="text-red-400">Execution failed: ${data.message || "Unknown error"}</span>`;
+                        }
+                    } catch (e) {
+                        terminalOutput.innerHTML = `<span class="text-red-400">API Error: ${e.message}</span>`;
+                    }
+                }
+
+                async function formatCode() {
+                    if (!window.monacoEditor) return;
+                    const code = window.monacoEditor.getValue();
+                    const lang = window.monacoEditor.getModel().getLanguageId();
+
+                    try {
+                        let formatted = code;
+                        let parser = null;
+
+                        if (lang === 'javascript' || lang === 'typescript') parser = 'babel';
+                        else if (lang === 'html') parser = 'html';
+                        else if (lang === 'css') parser = 'css';
+                        else if (lang === 'json') parser = 'json';
+                        else if (lang === 'markdown') parser = 'markdown';
+                        else if (lang === 'yaml') parser = 'yaml';
+
+                        if (parser && window.prettier && window.prettierPlugins) {
+                            formatted = await window.prettier.format(code, {
+                                parser: parser,
+                                plugins: window.prettierPlugins
+                            });
+                            window.monacoEditor.setValue(formatted);
+                            showToast("Code formatted with Prettier!", "success");
+                        } else {
+                            // Fallback to Monaco's built-in formatter
+                            await window.monacoEditor.getAction('editor.action.formatDocument').run();
+                            showToast("Triggered editor formatter", "info");
+                        }
+                    } catch (e) {
+                        showToast("Formatting error: " + e.message, "error");
+                    }
+                }
+
+                async function minifyCode() {
+                    if (!window.monacoEditor) return;
+                    const code = window.monacoEditor.getValue();
+                    if (!code.trim()) return showToast("No code to minify!", "warning");
+                    
+                    showToast("Minifying code...", "info");
+
+                    try {
+                        const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                        const lang = window.monacoEditor.getModel().getLanguageId();
+                        
+                        const response = await fetch(`http://localhost:8000/api/generate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                prompt: `Minify the following ${lang} code. Remove all unnecessary whitespace, newlines, and comments to make it as compact as possible while preserving functionality. Return ONLY the minified code. Do not use markdown blocks.\n\nCode:\n${code}`,
+                                language: lang,
+                                user_type: "developer",
+                                model: model
+                            })
+                        });
+
+                        if (!response.ok) throw new Error("Minification failed");
+                        const data = await response.json();
+                        let minified = data.generated_code || "";
+                        
+                        // Strip markdown if AI ignores instruction
+                        minified = minified.replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
+                        
+                        if(minified) {
+                            window.monacoEditor.setValue(minified);
+                            showToast("Code minified successfully!", "success");
+                        } else {
+                            showToast("AI returned empty code", "error");
+                        }
+                    } catch (e) {
+                        showToast("Error: " + e.message, "error");
+                    }
+                }
+
+                async function visualizeCode() {
+                    const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
+                    if (!code.trim()) return showToast("No code to visualize!", "warning");
+
+                    const vizContainer = get('visualizerContainer');
+                    const mermaidOutput = get('mermaidOutput');
+                    const toolsSection = get('toolsOutputSection');
+
+                    if(toolsSection) toolsSection.classList.remove('hidden');
+                    if(vizContainer) vizContainer.classList.remove('hidden');
+                    if(get('terminalContainer')) get('terminalContainer').classList.add('hidden');
+
+                    mermaidOutput.innerHTML = '<div class="animate-pulse text-purple-400"><i class="fas fa-brain fa-spin mr-2"></i>Analyzing logic flow...</div>';
+
+                    // Use the existing generation endpoint to create Mermaid syntax
+                    try {
+                        const prompt = "Generate a Mermaid.js flowchart (graph TD) representing the logic of this code. Return ONLY the mermaid code inside a markdown block (```mermaid ... ```). Do not explain.";
+                        const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                        
+                        const response = await fetch(`http://localhost:8000/api/generate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                prompt: `${prompt}\n\nCode:\n${code}`,
+                                language: "mermaid",
+                                user_type: "developer",
+                                model: model
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        let mermaidCode = data.generated_code || "";
+                        
+                        // Clean up markdown tags if present
+                        mermaidCode = mermaidCode.replace(/```mermaid/g, '').replace(/```/g, '').trim();
+
+                        mermaidOutput.innerHTML = '';
+                        const { svg } = await mermaid.render('graphDiv', mermaidCode);
+                        mermaidOutput.innerHTML = svg;
+                        
+                    } catch (e) {
+                        mermaidOutput.innerHTML = `<p class="text-red-400">Visualization failed: ${e.message}</p>`;
+                    }
+                }
+
+                // --- CHAT FEATURE ---
+                const setupChat = () => {
+                    const tabResults = get('tabResults');
+                    const tabChat = get('tabChat');
+                    const reviewResults = get('reviewResults');
+                    const chatInterface = get('chatInterface');
+                    const chatInput = get('chatInput');
+                    const sendChatBtn = get('sendChatBtn');
+                    const chatHistory = get('chatHistory');
+                    const clearChatBtn = get('clearChatBtn');
+
+                    if(tabResults && tabChat) {
+                        tabResults.onclick = () => {
+                            reviewResults.classList.remove('hidden');
+                            chatInterface.classList.add('hidden');
+                            tabResults.classList.add('bg-slate-600', 'text-white', 'shadow-sm');
+                            tabResults.classList.remove('text-slate-400', 'hover:bg-slate-700/50');
+                            tabChat.classList.remove('bg-slate-600', 'text-white', 'shadow-sm');
+                            tabChat.classList.add('text-slate-400', 'hover:bg-slate-700/50');
+                        };
+                        tabChat.onclick = () => {
+                            reviewResults.classList.add('hidden');
+                            chatInterface.classList.remove('hidden');
+                            tabChat.classList.add('bg-slate-600', 'text-white', 'shadow-sm');
+                            tabChat.classList.remove('text-slate-400', 'hover:bg-slate-700/50');
+                            tabResults.classList.remove('bg-slate-600', 'text-white', 'shadow-sm');
+                            tabResults.classList.add('text-slate-400', 'hover:bg-slate-700/50');
+                        };
+                    }
+
+                    const sendMsg = async () => {
+                        const msg = chatInput.value.trim();
+                        if(!msg) return;
+
+                        // User Message
+                        chatHistory.innerHTML += `
+                            <div class="flex gap-3 flex-row-reverse">
+                                <div class="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-user text-white text-xs"></i></div>
+                                <div class="bg-sky-900/30 p-3 rounded-2xl rounded-tr-none text-sm text-sky-100 border border-sky-700/50">${msg}</div>
+                            </div>`;
+                        chatInput.value = '';
+                        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+                        // AI Loading
+                        const loadingId = 'loading-' + Date.now();
+                        chatHistory.innerHTML += `
+                            <div id="${loadingId}" class="flex gap-3">
+                                <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
+                                <div class="bg-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-400 border border-slate-600 animate-pulse">Thinking...</div>
+                            </div>`;
+                        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+                        try {
+                            const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
+                            const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                            
+                            const res = await fetch('http://localhost:8000/api/generate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    prompt: `Context Code:\n${code}\n\nUser Question: ${msg}\n\nAnswer the question based on the code context. Keep it concise.`,
+                                    language: "markdown",
+                                    user_type: "developer",
+                                    model: model
+                                })
+                            });
+                            const data = await res.json();
+                            const aiMsg = data.generated_code || "I couldn't generate a response.";
+                            
+                            document.getElementById(loadingId).remove();
+                            chatHistory.innerHTML += `
+                                <div class="flex gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
+                                    <div class="bg-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 border border-slate-600 prose prose-invert prose-sm max-w-none">
+                                        ${typeof marked !== 'undefined' ? marked.parse(aiMsg) : aiMsg}
+                                    </div>
+                                </div>`;
+                            chatHistory.scrollTop = chatHistory.scrollHeight;
+                        } catch(e) {
+                            document.getElementById(loadingId).innerHTML = `<div class="text-red-400">Error: ${e.message}</div>`;
+                        }
+                    };
+
+                    if(clearChatBtn) {
+                        clearChatBtn.onclick = () => {
+                            chatHistory.innerHTML = `
+                                <div class="flex gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
+                                    <div class="bg-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 border border-slate-600">
+                                        Hello! I'm ready to answer questions about your code.
+                                    </div>
+                                </div>`;
+                            showToast('Chat history cleared', 'info');
+                        };
+                    }
+
+                    if(sendChatBtn) sendChatBtn.onclick = sendMsg;
+                    if(chatInput) chatInput.onkeypress = (e) => { if(e.key === 'Enter') sendMsg(); };
+                };
+                setupChat();
+
                 // --- 4. EVENT LISTENERS ---
 
                 // OCR
                 setChange('ocrFile', async (e) => {
                     if (!e.target.files[0]) return;
-                    
-                    const codeInput = get('codeInput');
-                    if (!codeInput) return;
 
-                    const originalValue = codeInput.value;
-                    codeInput.value = "⏳ Scanning image... please wait...";
-                    codeInput.disabled = true;
+                    if (!window.monacoEditor) return;
+
+                    const originalValue = window.monacoEditor.getValue();
+                    window.monacoEditor.setValue("# ⏳ Scanning image... please wait...");
+                    // Monaco doesn't have a simple 'disabled' state like textarea, 
+                    // but we can set readOnly if we wanted. For now, just text update.
                     
-                    // Switch to Analysis Mode
+                    // Switch to Analysis Mode if not already
                     const modeAnalysis = get('modeAnalysis');
                     if (modeAnalysis) modeAnalysis.click();
 
@@ -758,7 +1337,7 @@
                             await worker.terminate();
                             
                             if (ret.data.text) {
-                                codeInput.value = ret.data.text;
+                                window.monacoEditor.setValue(ret.data.text);
                                 showToast('✅ OCR Complete (Client-side)', 'success');
                                 return; // Success
                             }
@@ -774,15 +1353,38 @@
                             const res = await fetch('http://localhost:8000/api/ocr', { method: 'POST', body: formData });
                             if (!res.ok) throw new Error("Backend OCR Failed");
                             const data = await res.json();
-                            codeInput.value = data.extracted_code || "// No code detected";
+                            window.monacoEditor.setValue(data.extracted_code || "// No code detected");
                             showToast('✅ OCR Complete (Server-side)', 'success');
                         } catch (serverErr) {
                             alert("OCR Failed: " + serverErr.message);
-                            codeInput.value = originalValue;
+                            window.monacoEditor.setValue(originalValue);
                         }
                     } finally {
-                        codeInput.disabled = false;
                         e.target.value = ''; 
+                    }
+                });
+
+                // GitHub Loader
+                setClick('loadGithubBtn', async () => {
+                    const urlInput = get('githubUrl');
+                    if (!urlInput || !urlInput.value) return showToast("Please enter a URL", "warning");
+                    
+                    let url = urlInput.value.trim();
+                    // Convert github.com blob to raw
+                    if (url.includes('github.com') && url.includes('/blob/')) {
+                        url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                    }
+
+                    try {
+                        showToast("Fetching code...", "info");
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error("Failed to fetch");
+                        const text = await res.text();
+                        if (window.monacoEditor) window.monacoEditor.setValue(text);
+                        showToast("Code loaded from URL", "success");
+                        urlInput.value = ""; 
+                    } catch (e) {
+                        showToast("Error loading URL: " + e.message, "error");
                     }
                 });
 
@@ -801,6 +1403,252 @@
                 // Buttons
                 setClick('reviewBtn', () => processCode('review'));
                 setClick('fixBtn', () => processCode('fix'));
+                setClick('runCodeBtn', runCode);
+                setClick('visualizeBtn', visualizeCode);
+                setClick('formatBtn', formatCode);
+                setClick('minifyBtn', minifyCode);
+                
+                setClick('wordWrapBtn', () => {
+                    if(!window.monacoEditor) return;
+                    const current = window.monacoEditor.getOption(monaco.editor.EditorOption.wordWrap);
+                    const newState = current === 'off' ? 'on' : 'off';
+                    window.monacoEditor.updateOptions({ wordWrap: newState });
+                    showToast(`Word Wrap: ${newState.toUpperCase()}`, 'info');
+                });
+
+                setClick('clearEditorBtn', () => {
+                    if(window.monacoEditor && confirm("Clear editor content?")) window.monacoEditor.setValue('');
+                });
+                
+                setClick('fullscreenBtn', () => {
+                    const wrapper = document.getElementById('editorWrapper');
+                    const container = document.getElementById('monaco-container');
+                    
+                    if (!document.fullscreenElement) {
+                        wrapper.requestFullscreen().catch(err => {
+                            showToast(`Error enabling fullscreen: ${err.message}`, 'error');
+                        });
+                        container.style.height = '100vh';
+                    } else {
+                        document.exitFullscreen();
+                        container.style.height = '400px';
+                    }
+                });
+
+                document.addEventListener('fullscreenchange', () => {
+                    const container = document.getElementById('monaco-container');
+                    if (!document.fullscreenElement) {
+                        container.style.height = '400px';
+                    } else {
+                        container.style.height = 'calc(100vh - 80px)'; // Adjust for header/footer
+                    }
+                    if (window.monacoEditor) window.monacoEditor.layout();
+                });
+
+                // Shortcuts Modal
+                const modal = get('shortcutsModal');
+                setClick('shortcuts-btn', () => modal.classList.remove('hidden'));
+                setClick('closeShortcutsBtn', () => modal.classList.add('hidden'));
+
+                // --- SETTINGS MODAL LOGIC ---
+                const settingsModal = get('settingsModal');
+                setClick('settings-btn', () => settingsModal.classList.remove('hidden'));
+                setClick('closeSettingsBtn', () => settingsModal.classList.add('hidden'));
+
+                const updateSettings = () => {
+                    if(!window.monacoEditor) return;
+                    const fontSize = parseInt(get('settingFontSize').value);
+                    const minimap = get('settingMinimap').checked;
+                    const wordWrap = get('settingWordWrap').checked ? 'on' : 'off';
+                    const lineNumbers = get('settingLineNumbers').checked ? 'on' : 'off';
+
+                    get('fontSizeVal').innerText = fontSize + 'px';
+                    
+                    window.monacoEditor.updateOptions({
+                        fontSize: fontSize,
+                        minimap: { enabled: minimap },
+                        wordWrap: wordWrap,
+                        lineNumbers: lineNumbers
+                    });
+
+                    localStorage.setItem('editorSettings', JSON.stringify({ fontSize, minimap, wordWrap, lineNumbers }));
+                };
+
+                ['settingFontSize', 'settingMinimap', 'settingWordWrap', 'settingLineNumbers'].forEach(id => {
+                    const el = get(id);
+                    if(el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', updateSettings);
+                });
+
+                // --- COMMAND PALETTE LOGIC ---
+                const cmdPalette = get('commandPalette');
+                const cmdInput = get('cmdInput');
+                const cmdList = get('cmdList');
+
+                const commands = [
+                    { label: 'Run Review', icon: 'microscope', action: () => get('reviewBtn').click() },
+                    { label: 'Generate Code', icon: 'wand-magic-sparkles', action: () => get('generateBtn').click() },
+                    { label: 'Format Code', icon: 'align-left', action: () => formatCode() },
+                    { label: 'Minify Code', icon: 'compress-arrows-alt', action: () => minifyCode() },
+                    { label: 'Run Code', icon: 'play', action: () => runCode() },
+                    { label: 'Visualize Logic', icon: 'project-diagram', action: () => visualizeCode() },
+                    { label: 'Toggle Fullscreen', icon: 'expand', action: () => get('fullscreenBtn').click() },
+                    { label: 'Clear Editor', icon: 'trash', action: () => get('clearEditorBtn').click() },
+                    { label: 'Open Settings', icon: 'cog', action: () => get('settings-btn').click() }
+                ];
+
+                const renderCommands = (filter = '') => {
+                    cmdList.innerHTML = '';
+                    const filtered = commands.filter(c => c.label.toLowerCase().includes(filter.toLowerCase()));
+                    filtered.forEach((cmd, idx) => {
+                        const div = document.createElement('div');
+                        div.className = `p-2 hover:bg-slate-700 rounded cursor-pointer flex items-center gap-3 text-sm text-slate-300 ${idx === 0 ? 'bg-slate-700' : ''}`;
+                        div.innerHTML = `<i class="fas fa-${cmd.icon} w-5 text-center"></i> ${cmd.label}`;
+                        div.onclick = () => {
+                            cmd.action();
+                            cmdPalette.classList.add('hidden');
+                        };
+                        cmdList.appendChild(div);
+                    });
+                };
+
+                cmdInput.addEventListener('input', (e) => renderCommands(e.target.value));
+
+                // --- MOBILE TABS LOGIC ---
+                const leftPanel = get('left-panel');
+                const rightPanel = get('right-panel');
+                const mTabEditor = get('mobile-tab-editor');
+                const mTabOutput = get('mobile-tab-output');
+                const mTabChat = get('mobile-tab-chat');
+
+                const setMobileView = (view) => {
+                    // Reset Tabs
+                    [mTabEditor, mTabOutput, mTabChat].forEach(t => {
+                        t.className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all";
+                    });
+
+                    if(view === 'editor') {
+                        leftPanel.classList.remove('mobile-hidden');
+                        rightPanel.classList.add('mobile-hidden');
+                        mTabEditor.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition-all";
+                    } else {
+                        leftPanel.classList.add('mobile-hidden');
+                        rightPanel.classList.remove('mobile-hidden');
+                        if(view === 'output') {
+                            get('tabResults').click();
+                            mTabOutput.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition-all";
+                        } else {
+                            get('tabChat').click();
+                            mTabChat.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition-all";
+                        }
+                    }
+                };
+
+                if(mTabEditor) {
+                    mTabEditor.onclick = () => setMobileView('editor');
+                    mTabOutput.onclick = () => setMobileView('output');
+                    mTabChat.onclick = () => setMobileView('chat');
+                }
+
+                // --- FILE SYSTEM & WORKSPACE ---
+                
+                async function openFolder() {
+                    try {
+                        const dirHandle = await window.showDirectoryPicker();
+                        window.currentDirHandle = dirHandle;
+                        
+                        // Persist handle
+                        await idbKeyval.set('projectHandle', dirHandle, window.dbStore);
+                        
+                        await renderFileTree(dirHandle);
+                        showToast(`📂 Project opened: ${dirHandle.name}`, 'success');
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Could not open folder", "error");
+                    }
+                }
+
+                async function renderFileTree(dirHandle) {
+                    const explorer = get('fileExplorer');
+                    const emptyState = get('emptyExplorer');
+                    const treeContent = get('fileTreeContent');
+                    
+                    emptyState.classList.add('hidden');
+                    treeContent.classList.remove('hidden');
+                    treeContent.innerHTML = ''; // Clear
+
+                    const rootUl = document.createElement('div');
+                    await buildTreeRecursive(dirHandle, rootUl);
+                    treeContent.appendChild(rootUl);
+                }
+
+                async function buildTreeRecursive(dirHandle, container, level = 0) {
+                    for await (const entry of dirHandle.values()) {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'file-tree-item';
+                        itemDiv.style.paddingLeft = `${level * 12 + 8}px`;
+                        
+                        if (entry.kind === 'file') {
+                            itemDiv.innerHTML = `<i class="fas fa-file-code text-slate-500"></i> ${entry.name}`;
+                            itemDiv.onclick = async () => {
+                                // Highlight active
+                                document.querySelectorAll('.file-tree-item').forEach(el => el.classList.remove('active'));
+                                itemDiv.classList.add('active');
+                                
+                                // Load file content
+                                const file = await entry.getFile();
+                                const text = await file.text();
+                                if(window.monacoEditor) {
+                                    window.monacoEditor.setValue(text);
+                                    // Try to detect language from extension
+                                    const ext = entry.name.split('.').pop();
+                                    const langMap = {'js':'javascript', 'py':'python', 'html':'html', 'css':'css', 'json':'json', 'md':'markdown', 'ts':'typescript'};
+                                    if(langMap[ext]) monaco.editor.setModelLanguage(window.monacoEditor.getModel(), langMap[ext]);
+                                }
+                            };
+                            container.appendChild(itemDiv);
+                        } else if (entry.kind === 'directory') {
+                            // Folder Logic
+                            itemDiv.innerHTML = `<i class="fas fa-folder text-yellow-500"></i> ${entry.name}`;
+                            const subContainer = document.createElement('div');
+                            subContainer.className = 'hidden'; // Collapsed by default
+                            
+                            itemDiv.onclick = () => {
+                                const isOpen = !subContainer.classList.contains('hidden');
+                                subContainer.classList.toggle('hidden');
+                                itemDiv.querySelector('i').className = isOpen ? 'fas fa-folder text-yellow-500' : 'fas fa-folder-open text-yellow-500';
+                            };
+                            
+                            container.appendChild(itemDiv);
+                            container.appendChild(subContainer);
+                            // Lazy load subfolders could be implemented here, but for now we recurse
+                            await buildTreeRecursive(entry, subContainer, level + 1);
+                        }
+                    }
+                }
+
+                async function restoreWorkspace() {
+                    try {
+                        const handle = await idbKeyval.get('projectHandle', window.dbStore);
+                        if (handle) {
+                            // Browser requires permission verification on reload
+                            const perm = await handle.queryPermission({ mode: 'read' });
+                            if (perm === 'granted') {
+                                window.currentDirHandle = handle;
+                                await renderFileTree(handle);
+                            } else {
+                                // If permission needed, we can't auto-load, but we know a project exists
+                                // We could show a "Reload Previous Project" button
+                            }
+                        }
+                    } catch (e) { console.log("No workspace to restore"); }
+                }
+
+                setClick('sidebarOpenBtn', openFolder);
+                setClick('refreshExplorerBtn', () => window.currentDirHandle && renderFileTree(window.currentDirHandle));
+                setClick('closeFolderBtn', async () => {
+                    await idbKeyval.del('projectHandle', window.dbStore);
+                    location.reload();
+                });
 
                 // Generate Code
                 setClick('generateBtn', async () => {
@@ -818,6 +1666,18 @@
                     
                     const feedback = get('reviewFeedback');
                     const model = get('modelSelectorGeneration') ? get('modelSelectorGeneration').value : 'llama-3.3-70b';
+                    const framework = get('generationFramework') ? get('generationFramework').value : 'none';
+                    
+                    // Context Logic
+                    const includeContext = get('includeContext') ? get('includeContext').checked : false;
+                    let finalPrompt = prompt;
+                    if (includeContext && window.monacoEditor) {
+                        const editorCode = window.monacoEditor.getValue();
+                        if (editorCode.trim()) {
+                            finalPrompt = `Context Code:\n\`\`\`${language}\n${editorCode}\n\`\`\`\n\nRequest: ${prompt}`;
+                        }
+                    }
+
                     if (feedback) {
                         feedback.innerHTML = `
                             <div class="space-y-4 p-2">
@@ -826,6 +1686,28 @@
                                 <div class="skeleton h-64 w-full"></div>
                                 <div class="skeleton h-12 w-1/2"></div>
                             </div>`;
+                    }
+                    
+                    const frameworkStr = framework !== 'none' ? ` using ${framework}` : '';
+
+                    // STREAMING IMPLEMENTATION (Client-Side Hook)
+                    async function streamAIResponse(promptText) {
+                        // This simulates how you would consume a streaming endpoint
+                        // Replace URL with your actual streaming endpoint
+                        const response = await fetch(`http://localhost:8000/api/generate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                prompt: promptText,
+                                language: language,
+                                user_type: userType,
+                                model: model,
+                                stream: true // Flag for backend
+                            })
+                        });
+                        
+                        // Fallback to normal JSON if backend doesn't support stream yet
+                        return await response.json();
                     }
 
                     try {
@@ -836,19 +1718,7 @@
                             'verbose': 'Detailed and verbose code'
                         };
 
-                        const response = await fetch(`http://localhost:8000/api/generate`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                prompt: `${styleMap[style]}: ${prompt}`,
-                                language: language,
-                                user_type: userType,
-                                model: model
-                            })
-                        });
-
-                        if (!response.ok) throw new Error("Code generation failed");
-                        const data = await response.json();
+                        const data = await streamAIResponse(`${styleMap[style]}${frameworkStr}: ${finalPrompt}`);
                         const generatedCode = data.generated_code || '';
                         
                         // UI Updates
@@ -1184,6 +2054,9 @@
                         localStorage.setItem('theme', isLight ? 'light' : 'dark');
                         themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
                         showToast(`Switched to ${isLight ? 'Light' : 'Dark'} mode`, 'success');
+                        
+                        // Update Monaco Theme
+                        if (window.monacoEditor) monaco.editor.setTheme(isLight ? 'vs' : 'vs-dark');
                     };
                 }
 
@@ -1210,7 +2083,7 @@
 
                 // Drag & Drop
                 const setupDragDrop = () => {
-                    const dropZone = document.querySelector('.dropzone');
+                    const dropZone = document.getElementById('monaco-container'); // Use container for drop
                     if (!dropZone) return;
                     
                     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -1235,7 +2108,7 @@
                             if (file.type.startsWith('text') || file.name.endsWith('.py') || file.name.endsWith('.js') || file.name.endsWith('.java') || file.name.endsWith('.cpp')) {
                                 const reader = new FileReader();
                                 reader.onload = (event) => {
-                                    dropZone.value = event.target.result;
+                                    if (window.monacoEditor) window.monacoEditor.setValue(event.target.result);
                                     showToast(`✅ File uploaded: ${file.name}`, 'success');
                                 };
                                 reader.readAsText(file);
@@ -1264,8 +2137,83 @@
                             search.classList.toggle('hidden');
                             if (!search.classList.contains('hidden')) search.focus();
                         }
+                    } else if (e.altKey && e.shiftKey && e.key === 'F') {
+                        e.preventDefault();
+                        formatCode();
+                    } else if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                        e.preventDefault();
+                        cmdPalette.classList.remove('hidden');
+                        cmdInput.focus();
+                        renderCommands();
+                    } else if (e.key === 'Escape') {
+                        cmdPalette.classList.add('hidden');
+                        settingsModal.classList.add('hidden');
                     }
                 });
+
+                // Voice Coding (Web Speech API)
+                setClick('voiceCodeBtn', () => {
+                    if (!('webkitSpeechRecognition' in window)) return showToast("Voice not supported in this browser", "error");
+                    const recognition = new webkitSpeechRecognition();
+                    recognition.lang = 'en-US';
+                    recognition.start();
+                    showToast("Listening...", "info");
+                    
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript.toLowerCase();
+                        showToast(`Heard: "${transcript}"`, "info");
+                        if(transcript.includes("format")) formatCode();
+                        else if(transcript.includes("run")) runCode();
+                        else if(transcript.includes("clear")) get('clearEditorBtn').click();
+                    }
+                });
+                
+                // Quick Prompts Logic
+                const quickPrompts = document.getElementById('quickPrompts');
+                if (quickPrompts) {
+                    quickPrompts.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'BUTTON') {
+                            const promptInput = get('generationPrompt');
+                            if (promptInput) {
+                                promptInput.value = e.target.innerText + ": ";
+                                promptInput.focus();
+                            }
+                        }
+                    });
+                }
+                
+                // Framework Selector Logic
+                const frameworks = {
+                    python: ['Flask', 'Django', 'FastAPI', 'Pandas', 'NumPy', 'PyTorch', 'TensorFlow'],
+                    javascript: ['React', 'Vue', 'Angular', 'Node.js', 'Express', 'Next.js'],
+                    typescript: ['React', 'Angular', 'NestJS', 'Next.js'],
+                    java: ['Spring Boot', 'Hibernate', 'Android SDK'],
+                    cpp: ['Qt', 'Boost', 'Unreal Engine'],
+                    csharp: ['.NET Core', 'ASP.NET', 'Unity', 'WPF'],
+                    go: ['Gin', 'Echo', 'Fiber'],
+                    rust: ['Actix', 'Rocket', 'Tokio']
+                };
+                
+                const langSelectGen = get('generationLanguage');
+                const frameworkSelect = get('generationFramework');
+                
+                const updateFrameworks = () => {
+                    if (!langSelectGen || !frameworkSelect) return;
+                    const lang = langSelectGen.value;
+                    const opts = frameworks[lang] || [];
+                    frameworkSelect.innerHTML = '<option value="none">None / Standard Library</option>';
+                    opts.forEach(fw => {
+                        const option = document.createElement('option');
+                        option.value = fw;
+                        option.innerText = fw;
+                        frameworkSelect.appendChild(option);
+                    });
+                };
+                
+                if (langSelectGen) {
+                    langSelectGen.addEventListener('change', updateFrameworks);
+                    updateFrameworks(); // Initialize
+                }
 
                 // Tooltips
                 const rBtn = get('reviewBtn');
