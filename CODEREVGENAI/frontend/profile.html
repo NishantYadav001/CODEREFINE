@@ -96,6 +96,14 @@
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition-colors">Save Changes</button>
                 </div>
                 <p id="msg" class="text-sm mt-2"></p>
+
+                <div class="pt-8 mt-8 border-t border-gray-700">
+                    <h3 class="text-lg font-bold text-red-400 mb-2">Danger Zone</h3>
+                    <p class="text-gray-400 text-sm mb-4">Once you delete your account, there is no going back. Please be certain.</p>
+                    <button type="button" onclick="deleteAccount()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900 px-4 py-2 rounded transition-colors">
+                        Delete Account
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -146,6 +154,20 @@
                 msg.className = "text-sm mt-2 text-red-400";
             }
         });
+
+        async function deleteAccount() {
+            if(!confirm("Are you sure you want to delete your account? This action cannot be undone.")) return;
+            
+            const res = await fetch(`/api/profile/${username}`, { method: 'DELETE' });
+            if(res.ok) {
+                alert("Account deleted.");
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/login';
+            } else {
+                alert("Failed to delete account.");
+            }
+        }
 
         // Theme Logic
         const themeToggle = document.getElementById('theme-toggle');

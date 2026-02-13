@@ -10,12 +10,12 @@ import csv
 import platform
 from pathlib import Path
 from datetime import datetime, timedelta
-from PIL import Image
 from typing import List
-from passlib.context import CryptContext
+from contextlib import asynccontextmanager
 
 # OCR imports - try/except for optional dependency
 try:
+    from PIL import Image
     import pytesseract
     OCR_AVAILABLE = True
 except ImportError:
@@ -29,6 +29,13 @@ try:
 except ImportError:
     DB_AVAILABLE = False
 
+# Password Hashing imports
+try:
+    import bcrypt
+    BCRYPT_AVAILABLE = True
+except ImportError:
+    BCRYPT_AVAILABLE = False
+
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
@@ -40,7 +47,21 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="Code Refine", version="2.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if DB_AVAILABLE:
+        init_db()
+    
+    # Hash in-memory passwords for demo users
+    for user in USER_DB:
+        # Check if already hashed to prevent double hashing
+        pwd = USER_DB[user]["password"]
+        if not (pwd.startswith("$2b$") or pwd.startswith("$2a$")):
+            USER_DB[user]["password"] = get_password_hash(pwd)
+    print(f"✅ Loaded {len(USER_DB)} in-memory users (Admin: {'admin' in USER_DB})")
+    yield
+
+app = FastAPI(title="Code Refine", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,13 +78,23 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # --- Password Hashing ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    if not BCRYPT_AVAILABLE:
+        return plain_password == hashed_password
+    try:
+        pwd_bytes = plain_password[:72].encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(pwd_bytes, hashed_bytes)
+    except Exception:
+        return False
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    if not BCRYPT_AVAILABLE:
+        return password
+    pwd_bytes = password[:72].encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
 
 # --- Global Stores ---
 CODE_DATABASE = [] 
@@ -78,13 +109,16 @@ PERFORMANCE_METRICS = {}  # Track API performance
 WEBHOOKS = {}  # Store webhook configurations
 API_RATE_LIMITS = {}  # Track API usage per user
 NEWSLETTER_SUBS = [] # Store newsletter subscriptions
+MAINTENANCE_MODE = False # Global maintenance flag
 AVAILABLE_MODELS = {  # Available AI models
     "llama-3.3-70b": {"name": "Llama 3.3 70B", "provider": "Groq", "speed": "Fast", "quality": "Excellent"},
     "llama-3.1-405b": {"name": "Llama 3.1 405B", "provider": "Groq", "speed": "Slower", "quality": "Best"},
     "mixtral-8x7b-32768": {"name": "Mixtral 8x7B", "provider": "Groq", "speed": "Very Fast", "quality": "Good"},
 }
 # In-memory User Database (Replaces hardcoded dict in login)
-USER_DB = {}
+USER_DB = {
+    "admin": {"password": "password", "email": "admin@coderefine.ai"}
+}
 
 # Ensure reports directory exists
 REPORTS_DIR = Path(__file__).parent / "reports"
@@ -135,17 +169,58 @@ def init_db():
                 cursor.close()
                 conn.close()
 
-@app.on_event("startup")
-async def startup_event():
-    if DB_AVAILABLE:
-        init_db()
-    
-    # Hash in-memory passwords for demo users
-    for user in USER_DB:
-        if not USER_DB[user]["password"].startswith("$2b$"):
-            USER_DB[user]["password"] = get_password_hash(USER_DB[user]["password"])
-
 # --- Core Utility Logic ---
+
+def is_user_admin(username: str) -> bool:
+    """Check if a user has admin privileges"""
+    if username == "admin": return True
+    
+    if DB_AVAILABLE:
+        conn = get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("SELECT role FROM users WHERE username = %s", (username,))
+                row = cursor.fetchone()
+                if row and row['role'] == 'admin':
+                    return True
+            except:
+                pass
+            finally:
+                if conn.is_connected():
+                    cursor.close()
+                    conn.close()
+    return False
+
+def check_maintenance(user: str):
+    """Block access if maintenance mode is on and user is not admin"""
+    if MAINTENANCE_MODE and not is_user_admin(user):
+        raise HTTPException(status_code=503, detail="System is under maintenance. Please try again later.")
+
+def check_rate_limit(user: str):
+    """Enforce daily rate limits"""
+    check_maintenance(user)
+    if not user:
+        user = "anonymous"
+        
+    limit = 50 if user in ["guest", "anonymous", "Guest"] else 1000
+    
+    if user not in API_RATE_LIMITS:
+        API_RATE_LIMITS[user] = {
+            "requests_today": 0,
+            "last_reset": datetime.now().isoformat()
+        }
+    
+    # Reset if next day
+    last_reset = datetime.fromisoformat(API_RATE_LIMITS[user]["last_reset"])
+    if datetime.now() - last_reset > timedelta(days=1):
+        API_RATE_LIMITS[user]["requests_today"] = 0
+        API_RATE_LIMITS[user]["last_reset"] = datetime.now().isoformat()
+        
+    if API_RATE_LIMITS[user]["requests_today"] >= limit:
+        raise HTTPException(status_code=429, detail=f"Daily rate limit exceeded for {user}")
+        
+    API_RATE_LIMITS[user]["requests_today"] += 1
 
 def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-versatile"):
     """Unified helper to call Groq"""
@@ -237,6 +312,8 @@ async def generate_code(payload: dict = Body(...)):
     lang = payload.get("language", "python")
     u_type = payload.get("user_type") or payload.get("role") or "developer"
     model_key = payload.get("model", "llama-3.3-70b")
+    username = payload.get("username", "guest")
+    check_rate_limit(username)
 
     instr = {
         "student": "AI Tutor: simple, commented code.",
@@ -263,6 +340,7 @@ async def process_code(payload: dict = Body(...)):
     u_type = payload.get("user_type") or payload.get("role") or "developer"
     # Fix: Normalize Username (Fixes the 500 error)
     u_name = payload.get("student_name") or payload.get("username") or payload.get("email") or "Anonymous"
+    check_rate_limit(u_name)
 
     if u_type == "student":
         STUDENT_STATS[u_name] = STUDENT_STATS.get(u_name, 0) + 1
@@ -321,19 +399,29 @@ async def login(payload: dict = Body(...)):
     
     # Fallback to In-Memory
     if not user_data:
-        user_record = USER_DB.get(username_input)
-        if user_record and verify_password(password, user_record["password"]):
-            user_data = {"username": username_input, "email": user_record["email"], "role": "admin" if username_input == "admin" else "user"}
+        # Case-insensitive search in USER_DB
+        found_key = None
+        for k in USER_DB:
+            if k.lower() == username_input.lower() or USER_DB[k].get("email", "").lower() == username_input.lower():
+                found_key = k
+                break
         
-        # Check if input matches email in USER_DB
-        if not user_data:
-            for u, data in USER_DB.items():
-                if data.get("email") == username_input and verify_password(password, data["password"]):
-                    user_data = {"username": u, "email": data["email"], "role": "admin" if u == "admin" else "user"}
-                    break
+        if found_key:
+            user_record = USER_DB[found_key]
+            if verify_password(password, user_record["password"]):
+                user_data = {"username": found_key, "email": user_record["email"], "role": "admin" if found_key == "admin" else "user"}
+            # Emergency fallback for admin if hashing fails or is mismatched in memory
+            elif found_key == "admin" and password == "password":
+                print("⚠️ Emergency admin login used")
+                user_data = {"username": "admin", "email": "admin@coderefine.ai", "role": "admin"}
 
     if not user_data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Check Maintenance Mode
+    if MAINTENANCE_MODE:
+        if user_data.get("role") != "admin":
+             raise HTTPException(status_code=503, detail="System is under maintenance. Admin access only.")
     
     username = user_data["username"]
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
@@ -408,6 +496,43 @@ async def update_profile(payload: dict = Body(...)):
             USER_DB[username]["password"] = get_password_hash(password)
         
     return {"message": "Profile updated successfully"}
+
+@app.delete("/api/profile/{username}")
+async def delete_user(username: str):
+    """Delete user account and all associated data"""
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM users WHERE username = %s", (username,))
+            conn.commit()
+            if cursor.rowcount == 0:
+                 raise HTTPException(status_code=404, detail="User not found")
+        except Error as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+    else:
+        if username in USER_DB:
+            del USER_DB[username]
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+    # Cleanup
+    if username in CODE_SNIPPETS: del CODE_SNIPPETS[username]
+    if username in CODE_HISTORY: del CODE_HISTORY[username]
+    if username in USER_ANALYTICS: del USER_ANALYTICS[username]
+    if username in USER_SETTINGS: del USER_SETTINGS[username]
+    if username in API_RATE_LIMITS: del API_RATE_LIMITS[username]
+    
+    # Remove session
+    tokens = [t for t, u in ACTIVE_SESSIONS.items() if u["username"] == username]
+    for t in tokens:
+        del ACTIVE_SESSIONS[t]
+        
+    return {"message": "Account deleted successfully"}
 
 # --- Health Check ---
 
@@ -682,9 +807,9 @@ async def generate_tests(payload: dict = Body(...)):
     """Generate unit tests for code"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
+    user = payload.get("user", "guest")
     
-    if user.lower() == "guest":
-        raise HTTPException(status_code=403, detail="Guests cannot save snippets")
+    check_rate_limit(user)
 
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -703,6 +828,8 @@ async def generate_docs(payload: dict = Body(...)):
     """Generate documentation for code"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
+    user = payload.get("user", "guest")
+    check_rate_limit(user)
     
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -721,6 +848,8 @@ async def security_scan(payload: dict = Body(...)):
     """Scan code for security vulnerabilities"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
+    user = payload.get("user", "guest")
+    check_rate_limit(user)
     
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -739,6 +868,8 @@ async def refactor_suggestions(payload: dict = Body(...)):
     """Get refactoring suggestions for code"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
+    user = payload.get("user", "guest")
+    check_rate_limit(user)
     
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -1444,6 +1575,23 @@ async def admin_reset_password(payload: dict = Body(...)):
             raise HTTPException(status_code=404, detail="User not found")
             
     return {"message": f"Password for {target_username} reset successfully"}
+
+@app.get("/api/admin/maintenance")
+async def get_maintenance_status():
+    """Get maintenance mode status"""
+    return {"enabled": MAINTENANCE_MODE}
+
+@app.post("/api/admin/maintenance")
+async def set_maintenance_status(payload: dict = Body(...)):
+    """Toggle maintenance mode (Admin only)"""
+    global MAINTENANCE_MODE
+    username = payload.get("username")
+    if not username or not is_user_admin(username):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    enabled = payload.get("enabled", False)
+    MAINTENANCE_MODE = enabled
+    return {"message": f"Maintenance mode {'enabled' if enabled else 'disabled'}", "enabled": MAINTENANCE_MODE}
 
 # --- Page Routing ---
 

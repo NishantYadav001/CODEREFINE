@@ -96,6 +96,13 @@
                         <span>OCR Available</span>
                         <span id="ocr-status" class="text-gray-300">-</span>
                     </div>
+                    <div class="flex justify-between border-b border-slate-700 pb-2 items-center">
+                        <span>Maintenance Mode</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="maintenance-toggle" class="sr-only peer" onchange="toggleMaintenance()">
+                            <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
+                        </label>
+                    </div>
                     <div class="flex justify-between">
                         <span>Version</span>
                         <span id="sys-version" class="text-gray-300">-</span>
@@ -140,6 +147,8 @@
     </div>
 
     <script>
+        const currentAdminUser = localStorage.getItem('username') || 'admin';
+
         async function loadData() {
             // Fetch Analytics
             const analyticsRes = await fetch('/api/analytics/dashboard/global');
@@ -172,6 +181,11 @@
             document.getElementById('model-name').innerText = health.model;
             document.getElementById('ocr-status').innerText = health.ocr_available ? "Yes" : "No";
             document.getElementById('sys-version').innerText = health.version;
+
+            // Fetch Maintenance Status
+            const maintRes = await fetch('/api/admin/maintenance');
+            const maintData = await maintRes.json();
+            document.getElementById('maintenance-toggle').checked = maintData.enabled;
         }
 
         async function loadUsers() {
@@ -237,6 +251,21 @@
                 }
             } catch (e) {
                 alert("Request failed");
+            }
+        }
+
+        async function toggleMaintenance() {
+            const enabled = document.getElementById('maintenance-toggle').checked;
+            try {
+                const res = await fetch('/api/admin/maintenance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentAdminUser, enabled: enabled })
+                });
+                if (!res.ok) throw new Error("Failed to update");
+            } catch (e) {
+                alert("Error updating maintenance mode");
+                document.getElementById('maintenance-toggle').checked = !enabled; // Revert
             }
         }
 

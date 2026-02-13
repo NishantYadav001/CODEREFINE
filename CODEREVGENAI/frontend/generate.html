@@ -74,7 +74,6 @@
                 <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
                     <i class="fas fa-moon text-yellow-400"></i>
                 </button>
-                <a href="/app" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-code"></i> Editor</a>
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-chart-line"></i> Dashboard</a>
                 <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors ml-2"><i class="fas fa-sign-out-alt"></i></button>
             </div>
@@ -99,15 +98,17 @@
                         </button>
                     </div>
 
-                    <!-- Configuration -->
-                    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg">
+                    <!-- Merged Configuration & Prompt -->
+                    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
                         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <i class="fas fa-sliders-h text-emerald-400"></i> Configuration
+                            <i class="fas fa-sliders-h text-emerald-400"></i> Configuration & Prompt
                         </h2>
-                        <div class="space-y-4">
+
+                        <!-- Compact Configuration -->
+                        <div class="grid grid-cols-2 gap-3 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Language</label>
-                                <select id="language" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Language</label>
+                                <select id="language" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none">
                                     <option value="python">Python</option>
                                     <option value="javascript">JavaScript</option>
                                     <option value="java">Java</option>
@@ -118,31 +119,24 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">AI Model</label>
-                                <select id="model" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Model</label>
+                                <select id="model" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none">
                                     <option value="llama-3.3-70b">Llama 3.3 70B</option>
                                     <option value="llama-3.1-405b">Llama 3.1 405B</option>
                                     <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Persona</label>
-                                <select id="persona" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
+                            <div class="col-span-2">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Persona</label>
+                                <select id="persona" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none">
                                     <option value="developer">Expert Developer (Optimized)</option>
                                     <option value="student">Tutor (Simple & Commented)</option>
                                     <option value="enterprise">Enterprise Architect (Secure)</option>
                                 </select>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Prompt -->
-                    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
-                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <i class="fas fa-lightbulb text-yellow-400"></i> Prompt
-                        </h2>
-
-                        <textarea id="prompt" class="flex-1 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 focus:border-emerald-500 outline-none resize-none mb-4" 
+                        <textarea id="prompt" class="flex-1 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 focus:border-emerald-500 outline-none resize-none mb-4 text-sm" 
                             placeholder="Describe the code you want to generate... (e.g., 'Create a REST API for a todo list using FastAPI')"></textarea>
                         
                         <button onclick="generateCode()" id="gen-btn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
@@ -205,6 +199,7 @@
             const btn = document.getElementById('gen-btn');
             const loader = document.getElementById('loader');
             const output = document.getElementById('code-output');
+            const user = localStorage.getItem('username') || 'guest';
 
             if (!prompt.trim()) return alert("Please enter a prompt");
 
@@ -216,7 +211,7 @@
                 const res = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, language, model, user_type: persona })
+                    body: JSON.stringify({ prompt, language, model, user_type: persona, username: user })
                 });
                 
                 const data = await res.json();

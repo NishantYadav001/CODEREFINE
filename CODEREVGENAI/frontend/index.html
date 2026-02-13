@@ -1527,6 +1527,7 @@
                                 language: language,
                                 user_type: userType,
                                 model: model,
+                                username: studentName,
                                 stream: true // Flag for backend
                             })
                         });
@@ -1703,7 +1704,7 @@
                         const res = await fetch('http://localhost:8000/api/generate-tests', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language, user: studentName })
                         });
                         const data = await res.json();
                         if (feedback) feedback.innerHTML = `<h4 class="text-emerald-400 font-bold mb-2">Unit Tests</h4><pre class="bg-slate-800 p-3 rounded text-sm overflow-auto max-h-96"><code>${data.tests.replace(/</g, '&lt;')}</code></pre>`;
@@ -1718,7 +1719,7 @@
                         const res = await fetch('http://localhost:8000/api/generate-docs', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language, user: studentName })
                         });
                         const data = await res.json();
                         if (feedback) feedback.innerHTML = `<h4 class="text-blue-400 font-bold mb-2">Documentation</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto">${typeof marked !== 'undefined' ? marked.parse(data.documentation) : data.documentation}</div>`;
@@ -1733,7 +1734,7 @@
                         const res = await fetch('http://localhost:8000/api/security-scan', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language, user: studentName })
                         });
                         const data = await res.json();
                         if (feedback) feedback.innerHTML = `<h4 class="text-red-400 font-bold mb-2">Security Analysis</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto whitespace-pre-wrap text-sm">${data.security_analysis.replace(/</g, '&lt;')}</div>`;
@@ -1748,7 +1749,7 @@
                         const res = await fetch('http://localhost:8000/api/refactor-suggestions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language })
+                            body: JSON.stringify({ code: window.downloadData.code, language: window.downloadData.language, user: studentName })
                         });
                         const data = await res.json();
                         if (feedback) feedback.innerHTML = `<h4 class="text-purple-400 font-bold mb-2">Refactoring Suggestions</h4><div class="bg-slate-800 p-3 rounded max-h-96 overflow-auto">${typeof marked !== 'undefined' ? marked.parse(data.refactoring_suggestions) : data.refactoring_suggestions}</div>`;
