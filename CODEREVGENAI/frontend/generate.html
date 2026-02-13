@@ -21,6 +21,16 @@
             --accent-color: #10b981; /* Emerald 500 */
         }
 
+        body.light-mode {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --border-color: #cbd5e1;
+            --accent-color: #059669;
+        }
+
         /* MASTER THEME OVERRIDE */
         .bg-slate-900 { background-color: var(--bg-primary) !important; }
         .bg-slate-800 { background-color: var(--bg-secondary) !important; }
@@ -61,6 +71,9 @@
                 </div>
             </div>
             <div class="flex items-center gap-6">
+                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
+                    <i class="fas fa-moon text-yellow-400"></i>
+                </button>
                 <a href="/app" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-code"></i> Editor</a>
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-chart-line"></i> Dashboard</a>
                 <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors ml-2"><i class="fas fa-sign-out-alt"></i></button>
@@ -158,6 +171,20 @@
         // Load User Preferences
         const userType = localStorage.getItem('userType') || 'developer';
         document.getElementById('persona').value = userType;
+
+        // Theme Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') document.body.classList.add('light-mode');
+        
+        if (themeToggle) {
+            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            themeToggle.onclick = () => {
+                const isLight = document.body.classList.toggle('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            };
+        }
 
         async function generateCode() {
             const prompt = document.getElementById('prompt').value;

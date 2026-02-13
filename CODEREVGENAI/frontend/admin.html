@@ -7,6 +7,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+        }
+        body.light-mode {
+            --bg-primary: #f9fafb;
+            --bg-secondary: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --border-color: #e5e7eb;
+        }
+        .bg-gray-900 { background-color: var(--bg-primary) !important; }
+        .bg-gray-800, .bg-slate-800 { background-color: var(--bg-secondary) !important; }
+        .bg-slate-700 { background-color: #e5e7eb !important; } /* Light mode table header */
+        body.light-mode .bg-slate-700 { background-color: #e5e7eb !important; color: #111827 !important; }
+        .text-white { color: var(--text-primary) !important; }
+        .text-gray-300, .text-gray-400, .text-slate-300, .text-slate-400 { color: var(--text-secondary) !important; }
+        .border-gray-700, .border-slate-700, .border-slate-600 { border-color: var(--border-color) !important; }
+        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
+    </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
 
@@ -18,7 +42,10 @@
                 <span class="text-xl font-bold">Admin Console</span>
             </div>
             <div class="space-x-4">
-                <a href="/" class="hover:text-blue-400">Home</a>
+                <button id="theme-toggle" class="p-2 rounded hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-moon text-yellow-400"></i>
+                </button>
+                <a href="/app" class="hover:text-blue-400">Editor</a>
                 <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">Logout</button>
             </div>
         </div>
@@ -211,6 +238,20 @@
             } catch (e) {
                 alert("Request failed");
             }
+        }
+
+        // Theme Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') document.body.classList.add('light-mode');
+        
+        if (themeToggle) {
+            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            themeToggle.onclick = () => {
+                const isLight = document.body.classList.toggle('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            };
         }
 
         loadData();

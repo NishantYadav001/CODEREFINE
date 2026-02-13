@@ -6,10 +6,40 @@
     <title>Sign Up - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
+        }
+        body.light-mode {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --border-color: #cbd5e1;
+        }
+        .bg-slate-900 { background-color: var(--bg-primary) !important; }
+        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
+        .text-white { color: var(--text-primary) !important; }
+        .text-slate-300, .text-slate-400 { color: var(--text-secondary) !important; }
+        .border-slate-700, .border-slate-600 { border-color: var(--border-color) !important; }
+        
+        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
+        input { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
+    </style>
 </head>
 <body class="bg-slate-900 text-white font-sans h-screen flex items-center justify-center">
 
-    <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-md">
+    <div class="absolute top-4 right-4">
+        <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
+            <i class="fas fa-moon text-yellow-400"></i>
+        </button>
+    </div>
+
+    <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-md relative">
         <div class="text-center mb-8">
             <i class="fas fa-code-branch text-blue-500 text-4xl mb-4"></i>
             <h1 class="text-2xl font-bold">Create Account</h1>
@@ -71,6 +101,20 @@
                 msg.className = "text-center text-sm mt-4 text-red-400";
             }
         });
+
+        // Theme Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') document.body.classList.add('light-mode');
+        
+        if (themeToggle) {
+            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            themeToggle.onclick = () => {
+                const isLight = document.body.classList.toggle('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            };
+        }
     </script>
 </body>
 </html>

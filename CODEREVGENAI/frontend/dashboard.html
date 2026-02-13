@@ -6,6 +6,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
+        }
+        body.light-mode {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --border-color: #cbd5e1;
+        }
+        .bg-slate-900 { background-color: var(--bg-primary) !important; }
+        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
+        .text-slate-50 { color: var(--text-primary) !important; }
+        .text-slate-400, .text-slate-500 { color: var(--text-secondary) !important; }
+        .border-slate-700 { border-color: var(--border-color) !important; }
+        
+        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
+        button.bg-slate-800 { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-50 min-h-screen p-8">
     <div class="container mx-auto max-w-4xl">
@@ -15,6 +39,9 @@
                 <p class="text-slate-400">Monitoring student engagement and code integrity</p>
             </div>
             <div class="flex gap-3">
+                <button id="theme-toggle" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
+                    <i class="fas fa-moon text-yellow-400"></i>
+                </button>
                 <a href="/app?userType=organisation" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
                     <i class="fas fa-arrow-left mr-2"></i>Back to Tool
                 </a>
@@ -89,6 +116,20 @@
                 sessionStorage.removeItem(key);
             });
             window.location.href = '/login';
+        }
+
+        // Theme Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') document.body.classList.add('light-mode');
+        
+        if (themeToggle) {
+            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            themeToggle.onclick = () => {
+                const isLight = document.body.classList.toggle('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            };
         }
 
         loadDashboard();
