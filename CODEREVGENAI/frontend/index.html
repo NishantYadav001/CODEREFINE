@@ -1900,9 +1900,14 @@
                 // Theme Toggle
                 const themeToggle = get('theme-toggle');
                 if (themeToggle) {
-                    const savedTheme = localStorage.getItem('theme') || 'dark';
-                    document.body.classList.toggle('light-mode', savedTheme === 'light');
-                    themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+                    const getPreferredTheme = () => {
+                        const savedTheme = localStorage.getItem('theme');
+                        if (savedTheme) return savedTheme;
+                        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+                    };
+                    const theme = getPreferredTheme();
+                    document.body.classList.toggle('light-mode', theme === 'light');
+                    themeToggle.innerHTML = theme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
                     
                     themeToggle.onclick = () => {
                         const isLight = document.body.classList.toggle('light-mode');

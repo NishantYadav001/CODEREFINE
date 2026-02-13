@@ -6,6 +6,28 @@
     <title>System Status - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
+        }
+        body.light-mode {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --border-color: #cbd5e1;
+        }
+        .bg-slate-900 { background-color: var(--bg-primary) !important; }
+        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
+        .text-white { color: var(--text-primary) !important; }
+        .text-slate-400, .text-slate-500, .text-gray-300 { color: var(--text-secondary) !important; }
+        .border-slate-700 { border-color: var(--border-color) !important; }
+        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
+    </style>
 </head>
 <body class="bg-slate-900 text-white font-sans">
 
@@ -16,7 +38,12 @@
                 <i class="fas fa-heartbeat text-red-500 text-2xl"></i>
                 <span class="text-xl font-bold">System Status</span>
             </div>
+            <div class="flex items-center gap-4">
+                <button id="theme-toggle" class="p-2 rounded hover:bg-slate-700 transition-colors">
+                    <i class="fas fa-moon text-yellow-400"></i>
+                </button>
             <a href="/admin" class="text-gray-300 hover:text-white">Back to Admin</a>
+            </div>
         </div>
     </nav>
 
@@ -133,6 +160,24 @@
                 document.getElementById('server-status').innerText = "Offline";
                 document.getElementById('server-status').className = "text-2xl font-bold text-red-500";
             }
+        }
+
+        // Theme Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const getPreferredTheme = () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) return savedTheme;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        };
+        const theme = getPreferredTheme();
+        if (theme === 'light') document.body.classList.add('light-mode');
+        if (themeToggle) {
+            themeToggle.innerHTML = theme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            themeToggle.onclick = () => {
+                const isLight = document.body.classList.toggle('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
+            };
         }
 
         loadStatus();
