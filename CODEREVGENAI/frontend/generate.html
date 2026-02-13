@@ -132,6 +132,7 @@
                     <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
                         <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider pl-2 flex items-center gap-2"><i class="fas fa-code"></i> Generated Output</span>
                         <div class="flex gap-2">
+                            <button onclick="refineCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Refine Code"><i class="fas fa-wand-magic-sparkles"></i></button>
                             <button onclick="copyCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
                             <button onclick="saveSnippet()" class="text-slate-400 hover:text-white transition-colors px-2" title="Save to Library"><i class="fas fa-save"></i></button>
                         </div>
@@ -192,6 +193,48 @@
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('opacity-50');
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function refineCode() {
+            const output = document.getElementById('code-output');
+            const currentCode = output.textContent;
+            
+            if (!currentCode || currentCode.trim().startsWith('# Generated')) {
+                return alert("Generate some code first to refine!");
+            }
+
+            const instruction = prompt("How should the code be refined?", "Optimize for performance and add comments");
+            if (!instruction) return;
+
+            const language = document.getElementById('language').value;
+            const model = document.getElementById('model').value;
+            const persona = document.getElementById('persona').value;
+            const loader = document.getElementById('loader');
+
+            loader.classList.remove('hidden');
+            
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: `Refine the following ${language} code. Instructions: ${instruction}\n\nCode:\n${currentCode}`, 
+                        language, 
+                        model, 
+                        user_type: persona 
+                    })
+                });
+                
+                const data = await res.json();
+                
+                output.textContent = data.generated_code;
+                hljs.highlightElement(output);
+
+            } catch (err) {
+                alert("Refinement failed: " + err.message);
+            } finally {
                 loader.classList.add('hidden');
             }
         }
