@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from PIL import Image
 from typing import List
+from passlib.context import CryptContext
 
 # OCR imports - try/except for optional dependency
 try:
@@ -54,6 +55,15 @@ if not api_key:
     print("ERROR: GROQ_API_KEY not found in .env file!")
 
 client = Groq(api_key=api_key)
+
+# --- Password Hashing ---
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 # --- Global Stores ---
 CODE_DATABASE = [] 
@@ -133,6 +143,11 @@ def init_db():
 async def startup_event():
     if DB_AVAILABLE:
         init_db()
+    
+    # Hash in-memory passwords for demo users
+    for user in USER_DB:
+        if not USER_DB[user]["password"].startswith("$2b$"):
+            USER_DB[user]["password"] = get_password_hash(USER_DB[user]["password"])
 
 # --- Core Utility Logic ---
 
@@ -298,8 +313,11 @@ async def login(payload: dict = Body(...)):
         try:
             cursor = conn.cursor(dictionary=True)
             # Allow login by username OR email
-            cursor.execute("SELECT * FROM users WHERE (username = %s OR email = %s) AND password_hash = %s", (username_input, username_input, password))
+            cursor.execute("SELECT * FROM users WHERE username = %s OR email = %s", (username_input, username_input))
             user_data = cursor.fetchone()
+            
+            if user_data and not verify_password(password, user_data["password_hash"]):
+                user_data = None
         finally:
             if conn.is_connected():
                 cursor.close()
@@ -308,13 +326,13 @@ async def login(payload: dict = Body(...)):
     # Fallback to In-Memory
     if not user_data:
         user_record = USER_DB.get(username_input)
-        if user_record and user_record["password"] == password:
+        if user_record and verify_password(password, user_record["password"]):
             user_data = {"username": username_input, "email": user_record["email"], "role": "admin" if username_input == "admin" else "user"}
         
         # Check if input matches email in USER_DB
         if not user_data:
             for u, data in USER_DB.items():
-                if data.get("email") == username_input and data["password"] == password:
+                if data.get("email") == username_input and verify_password(password, data["password"]):
                     user_data = {"username": u, "email": data["email"], "role": "admin" if u == "admin" else "user"}
                     break
 
@@ -337,12 +355,14 @@ async def signup(payload: dict = Body(...)):
     if not username or not password or not email:
         raise HTTPException(status_code=400, detail="Missing required fields")
     
+    hashed_password = get_password_hash(password)
+    
     # Try Database First
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)", (username, email, password))
+            cursor.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)", (username, email, hashed_password))
             conn.commit()
         except Error as e:
             raise HTTPException(status_code=400, detail="Username already exists or DB error")
@@ -352,7 +372,7 @@ async def signup(payload: dict = Body(...)):
     else:
         if username in USER_DB:
             raise HTTPException(status_code=400, detail="Username already exists")
-        USER_DB[username] = {"password": password, "email": email}
+        USER_DB[username] = {"password": hashed_password, "email": email}
     
     return {"message": "User created successfully"}
 
@@ -378,7 +398,7 @@ async def update_profile(payload: dict = Body(...)):
             if email:
                 cursor.execute("UPDATE users SET email = %s WHERE username = %s", (email, username))
             if password:
-                cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (password, username))
+                cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (get_password_hash(password), username))
             conn.commit()
         finally:
             cursor.close()
@@ -389,7 +409,7 @@ async def update_profile(payload: dict = Body(...)):
         if email:
             USER_DB[username]["email"] = email
         if password:
-            USER_DB[username]["password"] = password
+            USER_DB[username]["password"] = get_password_hash(password)
         
     return {"message": "Profile updated successfully"}
 
@@ -1401,7 +1421,7 @@ async def admin_reset_password(payload: dict = Body(...)):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (new_password, target_username))
+            cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (get_password_hash(new_password), target_username))
             conn.commit()
             if cursor.rowcount == 0:
                  raise HTTPException(status_code=404, detail="User not found")
@@ -1414,7 +1434,7 @@ async def admin_reset_password(payload: dict = Body(...)):
     else:
         # Fallback to in-memory
         if target_username in USER_DB:
-            USER_DB[target_username]["password"] = new_password
+            USER_DB[target_username]["password"] = get_password_hash(new_password)
         else:
             raise HTTPException(status_code=404, detail="User not found")
             
