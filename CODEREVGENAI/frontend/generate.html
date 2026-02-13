@@ -6,109 +6,151 @@
     <title>Generate Code - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Prism.js for Syntax Highlighting -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-rust.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <!-- Highlight.js for consistent styling with Index -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
+            --accent-color: #10b981; /* Emerald 500 */
+        }
+
+        /* MASTER THEME OVERRIDE */
+        .bg-slate-900 { background-color: var(--bg-primary) !important; }
+        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
+        .bg-slate-700 { background-color: var(--bg-tertiary) !important; }
+        
+        .text-slate-50 { color: var(--text-primary) !important; }
+        .text-slate-300 { color: var(--text-secondary) !important; }
+        .text-slate-400 { color: var(--text-secondary) !important; }
+
+        .border-slate-700, .border-slate-600 { border-color: var(--border-color) !important; }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); }
+        nav { background-color: var(--bg-secondary) !important; border-bottom-color: var(--border-color) !important; }
+
+        /* Form Elements */
+        input, textarea, select { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
+        input:focus, textarea:focus, select:focus { border-color: var(--accent-color) !important; }
+
+        /* Code Output */
+        .code-output { font-family: 'Fira Code', monospace; background-color: var(--bg-primary) !important; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white font-sans h-screen flex flex-col">
+<body class="bg-slate-900 text-slate-50 h-screen flex flex-col overflow-hidden">
 
     <!-- Navbar -->
-    <nav class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center shadow-md">
-        <div class="flex items-center space-x-2">
-            <i class="fas fa-magic text-emerald-500 text-2xl"></i>
-            <span class="text-xl font-bold">AI Code Generator</span>
-        </div>
-        <div class="flex gap-4">
-            <a href="/app" class="text-gray-300 hover:text-white flex items-center gap-2">
-                <i class="fas fa-edit"></i> Editor
-            </a>
-            <a href="/dashboard" class="text-gray-300 hover:text-white flex items-center gap-2">
-                <i class="fas fa-chart-line"></i> Dashboard
-            </a>
-            <button onclick="logout()" class="text-red-400 hover:text-red-300 flex items-center gap-2 ml-2">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
+    <nav class="bg-slate-800 p-4 border-b border-slate-700 shadow-xl flex-none z-20">
+        <div class="container mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div>
+                    <h1 class="text-xl font-bold text-emerald-400 leading-none flex items-center gap-2"><i class="fas fa-magic"></i> AI Code Generator</h1>
+                    <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Creative Studio</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <a href="/app" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-code"></i> Editor</a>
+                <a href="/dashboard" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-chart-line"></i> Dashboard</a>
+                <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors ml-2"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
         </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
+        <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-900 relative scroll-smooth">
+            <div class="container mx-auto max-w-7xl h-full flex flex-col lg:flex-row gap-6">
         
-        <!-- Left Panel: Controls & Input -->
-        <div class="w-1/3 bg-slate-800 p-6 border-r border-slate-700 flex flex-col overflow-y-auto">
-            <h2 class="text-lg font-bold mb-4 text-emerald-400">Configuration</h2>
-            
-            <div class="space-y-4 mb-6">
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Language</label>
-                    <select id="language" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white focus:border-emerald-500 outline-none">
-                        <option value="python">Python</option>
-                        <option value="javascript">JavaScript</option>
-                        <option value="java">Java</option>
-                        <option value="cpp">C++</option>
-                        <option value="go">Go</option>
-                        <option value="rust">Rust</option>
-                        <option value="sql">SQL</option>
-                    </select>
+                <!-- Left Panel: Controls & Input -->
+                <div class="w-full lg:w-1/3 flex flex-col gap-4 h-full">
+                    
+                    <!-- Configuration -->
+                    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg">
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <i class="fas fa-sliders-h text-emerald-400"></i> Configuration
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Language</label>
+                                <select id="language" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
+                                    <option value="python">Python</option>
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="java">Java</option>
+                                    <option value="cpp">C++</option>
+                                    <option value="go">Go</option>
+                                    <option value="rust">Rust</option>
+                                    <option value="sql">SQL</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">AI Model</label>
+                                <select id="model" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
+                                    <option value="llama-3.3-70b">Llama 3.3 70B (Balanced)</option>
+                                    <option value="llama-3.1-405b">Llama 3.1 405B (High Quality)</option>
+                                    <option value="mixtral-8x7b-32768">Mixtral 8x7B (Fastest)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Persona</label>
+                                <select id="persona" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-slate-300 focus:border-emerald-500 outline-none transition-all">
+                                    <option value="developer">Expert Developer (Optimized)</option>
+                                    <option value="student">Tutor (Simple & Commented)</option>
+                                    <option value="enterprise">Enterprise Architect (Secure)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prompt -->
+                    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <i class="fas fa-lightbulb text-yellow-400"></i> Prompt
+                        </h2>
+                        <textarea id="prompt" class="flex-1 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 focus:border-emerald-500 outline-none resize-none mb-4" 
+                            placeholder="Describe the code you want to generate... (e.g., 'Create a REST API for a todo list using FastAPI')"></textarea>
+                        
+                        <button onclick="generateCode()" id="gen-btn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
+                            <i class="fas fa-bolt"></i> Generate Code
+                        </button>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">AI Model</label>
-                    <select id="model" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white focus:border-emerald-500 outline-none">
-                        <option value="llama-3.3-70b">Llama 3.3 70B (Balanced)</option>
-                        <option value="llama-3.1-405b">Llama 3.1 405B (High Quality)</option>
-                        <option value="mixtral-8x7b-32768">Mixtral 8x7B (Fastest)</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Persona / Style</label>
-                    <select id="persona" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white focus:border-emerald-500 outline-none">
-                        <option value="developer">Expert Developer (Optimized)</option>
-                        <option value="student">Tutor (Simple & Commented)</option>
-                        <option value="enterprise">Enterprise Architect (Secure)</option>
-                    </select>
+                <!-- Right Panel: Output -->
+                <div class="w-full lg:w-2/3 h-full flex flex-col">
+                    <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
+                        <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider pl-2 flex items-center gap-2"><i class="fas fa-code"></i> Generated Output</span>
+                        <div class="flex gap-2">
+                            <button onclick="copyCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
+                            <button onclick="saveSnippet()" class="text-slate-400 hover:text-white transition-colors px-2" title="Save to Library"><i class="fas fa-save"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="relative flex-1 bg-slate-900 border border-slate-700 rounded-b-xl overflow-hidden group">
+                        <pre class="m-0 p-4 h-full overflow-auto code-output"><code id="code-output" class="language-python text-sm"># Generated code will appear here...</code></pre>
+                        
+                        <!-- Loading Overlay -->
+                        <div id="loader" class="absolute inset-0 bg-slate-900/80 flex items-center justify-center hidden backdrop-blur-sm">
+                            <div class="flex flex-col items-center gap-4">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+                                <div class="text-emerald-400 font-bold animate-pulse">Generating Code...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <h2 class="text-lg font-bold mb-2 text-emerald-400">Prompt</h2>
-            <textarea id="prompt" class="flex-1 bg-slate-900 border border-slate-600 rounded p-4 text-white focus:border-emerald-500 outline-none resize-none mb-4" 
-                placeholder="Describe the code you want to generate... (e.g., 'Create a REST API for a todo list using FastAPI')"></textarea>
-            
-            <button onclick="generateCode()" id="gen-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded transition-colors flex justify-center items-center gap-2">
-                <i class="fas fa-bolt"></i> Generate Code
-            </button>
-        </div>
-
-        <!-- Right Panel: Output -->
-        <div class="w-2/3 bg-slate-900 p-6 flex flex-col relative">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-300">Generated Output</h2>
-                <div class="flex gap-2">
-                    <button onclick="copyCode()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm transition-colors">
-                        <i class="fas fa-copy"></i> Copy
-                    </button>
-                    <button onclick="saveSnippet()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition-colors">
-                        <i class="fas fa-save"></i> Save to Library
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex-1 bg-[#2d2d2d] rounded-lg overflow-auto border border-slate-700 relative group">
-                <pre class="m-0 p-4 h-full"><code id="code-output" class="language-python"># Generated code will appear here...</code></pre>
-                
-                <!-- Loading Overlay -->
-                <div id="loader" class="absolute inset-0 bg-slate-900 bg-opacity-75 flex items-center justify-center hidden">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script>
@@ -143,7 +185,7 @@
                 // Update code and highlight
                 output.className = `language-${language}`;
                 output.textContent = data.generated_code;
-                Prism.highlightElement(output);
+                hljs.highlightElement(output);
 
             } catch (err) {
                 alert("Generation failed: " + err.message);
