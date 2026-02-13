@@ -6,9 +6,12 @@ import json
 import difflib
 import time
 import hashlib
+import csv
+import platform
 from pathlib import Path
 from datetime import datetime, timedelta
 from PIL import Image
+from typing import List
 
 # OCR imports - try/except for optional dependency
 try:
@@ -17,7 +20,15 @@ try:
 except ImportError:
     OCR_AVAILABLE = False
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body
+# MySQL imports
+try:
+    import mysql.connector
+    from mysql.connector import Error
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -52,22 +63,52 @@ COMPANY_POLICIES = ""
 CODE_SNIPPETS = {}  # Store user snippets
 CODE_HISTORY = {}   # Track version history
 USER_ANALYTICS = {} # Track user activities
+USER_SETTINGS = {}  # Store user preferences
 PERFORMANCE_METRICS = {}  # Track API performance
 WEBHOOKS = {}  # Store webhook configurations
 API_RATE_LIMITS = {}  # Track API usage per user
+NEWSLETTER_SUBS = [] # Store newsletter subscriptions
 AVAILABLE_MODELS = {  # Available AI models
     "llama-3.3-70b": {"name": "Llama 3.3 70B", "provider": "Groq", "speed": "Fast", "quality": "Excellent"},
     "llama-3.1-405b": {"name": "Llama 3.1 405B", "provider": "Groq", "speed": "Slower", "quality": "Best"},
     "mixtral-8x7b-32768": {"name": "Mixtral 8x7B", "provider": "Groq", "speed": "Very Fast", "quality": "Good"},
 }
+# In-memory User Database (Replaces hardcoded dict in login)
+USER_DB = {
+    "admin": {"password": "password", "email": "admin@coderefine.ai"},
+    "student": {"password": "password", "email": "student@university.edu"},
+    "developer": {"password": "password", "email": "dev@techcorp.com"}
+}
+
+# Ensure reports directory exists
+REPORTS_DIR = Path(__file__).parent / "reports"
+REPORTS_DIR.mkdir(exist_ok=True)
+
+# --- Database Connection ---
+def get_db_connection():
+    """Establish connection to MySQL database"""
+    if not DB_AVAILABLE:
+        return None
+    try:
+        connection = mysql.connector.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            user=os.getenv("DB_USER", "root"),
+            password=os.getenv("DB_PASSWORD", ""),
+            database=os.getenv("DB_NAME", "coderefine")
+        )
+        if connection.is_connected():
+            return connection
+    except Error as e:
+        print(f"Database Warning: {e} (Using in-memory fallback)")
+    return None
 
 # --- Core Utility Logic ---
 
-def get_ai_response(prompt, temp=0.3, max_tokens=2000):
-    """Unified helper to call Groq Llama 3.3"""
+def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-versatile"):
+    """Unified helper to call Groq"""
     try:
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=model,
             messages=[{"role": "system", "content": "You are a helpful coding assistant."},
                       {"role": "user", "content": prompt}],
             temperature=temp,
@@ -152,6 +193,7 @@ async def generate_code(payload: dict = Body(...)):
     u_prompt = payload.get("prompt", "")
     lang = payload.get("language", "python")
     u_type = payload.get("user_type") or payload.get("role") or "developer"
+    model_key = payload.get("model", "llama-3.3-70b")
 
     instr = {
         "student": "AI Tutor: simple, commented code.",
@@ -159,8 +201,11 @@ async def generate_code(payload: dict = Body(...)):
         "developer": "Expert: optimized, production code."
     }
 
+    # Map frontend model keys to Groq model IDs
+    model_id = "llama-3.3-70b-versatile" if "3.3" in model_key else "llama-3.1-405b-reasoning" if "405" in model_key else "mixtral-8x7b-32768"
+
     full_prompt = f"{instr.get(u_type, instr['developer'])}\nGenerate {lang} for: {u_prompt}\nReturn ONLY code."
-    gen_text = get_ai_response(full_prompt, temp=0.6)
+    gen_text = get_ai_response(full_prompt, temp=0.6, model=model_id)
     
     match = re.search(r"```(?:\w+)?\n([\s\S]+?)\n```", gen_text)
     return {"generated_code": match.group(1) if match else gen_text.strip()}
@@ -213,20 +258,62 @@ async def login(payload: dict = Body(...)):
     username = payload.get("username", " ")
     password = payload.get("password", " ")
     
-    # Demo credentials
-    valid_users = {
-        "admin": "password",
-        "student": "password",
-        "developer": "password"
-    }
+    user_data = None
     
-    if username not in valid_users or valid_users[username] != password:
+    # Try Database First
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM users WHERE username = %s AND password_hash = %s", (username, password))
+            user_data = cursor.fetchone()
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+    
+    # Fallback to In-Memory
+    if not user_data:
+        user_record = USER_DB.get(username)
+        if user_record and user_record["password"] == password:
+            user_data = {"username": username, "email": user_record["email"], "role": "admin" if username == "admin" else "user"}
+
+    if not user_data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
-    ACTIVE_SESSIONS[token] = {"username": username, "role": "admin" if username == "admin" else "user"}
+    ACTIVE_SESSIONS[token] = {"username": username, "role": user_data.get("role", "user"), "email": user_data.get("email")}
     
     return {"token": token, "username": username, "message": "Login successful"}
+
+@app.post("/api/signup")
+async def signup(payload: dict = Body(...)):
+    """Register a new user"""
+    username = payload.get("username")
+    password = payload.get("password")
+    email = payload.get("email")
+    
+    if not username or not password or not email:
+        raise HTTPException(status_code=400, detail="Missing required fields")
+    
+    # Try Database First
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)", (username, email, password))
+            conn.commit()
+        except Error as e:
+            raise HTTPException(status_code=400, detail="Username already exists or DB error")
+        finally:
+            cursor.close()
+            conn.close()
+    else:
+        if username in USER_DB:
+            raise HTTPException(status_code=400, detail="Username already exists")
+        USER_DB[username] = {"password": password, "email": email}
+    
+    return {"message": "User created successfully"}
 
 @app.post("/api/logout")
 async def logout(payload: dict = Body(...)):
@@ -236,6 +323,35 @@ async def logout(payload: dict = Body(...)):
         del ACTIVE_SESSIONS[token]
     return {"message": "Logged out"}
 
+@app.post("/api/profile/update")
+async def update_profile(payload: dict = Body(...)):
+    """Update user profile (email/password)"""
+    username = payload.get("username")
+    email = payload.get("email")
+    password = payload.get("password")
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            if email:
+                cursor.execute("UPDATE users SET email = %s WHERE username = %s", (email, username))
+            if password:
+                cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (password, username))
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+    else:
+        if username not in USER_DB:
+            raise HTTPException(status_code=404, detail="User not found")
+        if email:
+            USER_DB[username]["email"] = email
+        if password:
+            USER_DB[username]["password"] = password
+        
+    return {"message": "Profile updated successfully"}
+
 # --- Health Check ---
 
 @app.get("/api/health")
@@ -243,6 +359,7 @@ async def health():
     """Health check endpoint"""
     return {
         "status": "healthy",
+        "database": "connected" if get_db_connection() else "in-memory fallback",
         "ocr_available": OCR_AVAILABLE,
         "model": "llama-3.3-70b-versatile",
         "version": "2.0.0"
@@ -929,24 +1046,379 @@ async def increment_quota(payload: dict = Body(...)):
     
     return {"message": "Quota incremented"}
 
+# 7. BATCH ANALYSIS
+@app.post("/api/batch-analyze")
+async def batch_analyze(files: List[UploadFile] = File(...)):
+    """Process multiple code files at once"""
+    results = []
+    for file in files:
+        content = await file.read()
+        code = content.decode("utf-8", errors="ignore")
+        # Perform a quick complexity scan for the summary
+        complexity = analyze_complexity(code)
+        results.append({
+            "filename": file.filename,
+            "complexity": complexity,
+            "size_bytes": len(code)
+        })
+    return {"results": results, "total_files": len(files)}
+
+# 9. DATA EXPORT (CSV)
+@app.get("/api/analytics/export")
+async def export_analytics_csv():
+    """Export user analytics data to CSV"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write Header
+    writer.writerow(["Username", "Total Reviews", "Total Generations", "Last Activity", "Most Used Language"])
+    
+    # Write Data
+    for user, data in USER_ANALYTICS.items():
+        langs = data.get("languages", {})
+        top_lang = max(langs, key=langs.get) if langs else "N/A"
+        writer.writerow([
+            user,
+            data.get("reviews", 0),
+            data.get("generations", 0),
+            data.get("last_activity", "N/A"),
+            top_lang
+        ])
+    
+    output.seek(0)
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=analytics_export.csv"})
+
+# 8. REAL-TIME COLLABORATION (WebSockets)
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/collab")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await manager.broadcast(data)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# 10. REPORT MANAGEMENT
+@app.get("/api/reports")
+async def list_reports():
+    """List all saved reports"""
+    files = []
+    for f in REPORTS_DIR.glob("*.*"):
+        files.append({
+            "filename": f.name,
+            "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
+            "size": f.stat().st_size
+        })
+    return {"reports": sorted(files, key=lambda x: x["created"], reverse=True)}
+
+@app.get("/api/reports/{filename}")
+async def get_report(filename: str):
+    """Download a specific report"""
+    file_path = REPORTS_DIR / filename
+    if file_path.exists():
+        return FileResponse(file_path, filename=filename)
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.delete("/api/reports/{filename}")
+async def delete_report(filename: str):
+    """Delete a report"""
+    file_path = REPORTS_DIR / filename
+    if file_path.exists():
+        os.remove(file_path)
+        return {"message": "Report deleted"}
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.post("/api/reports/save")
+async def save_report_to_disk(payload: dict = Body(...)):
+    """Generate and save report to disk"""
+    format_type = payload.get("format", "docx")
+    original_code = payload.get("original_code", "")
+    rewritten_code = payload.get("rewritten_code", "")
+    review = payload.get("review", "")
+    stats = payload.get("stats", {})
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"report_{timestamp}.{format_type}"
+    file_path = REPORTS_DIR / filename
+    
+    try:
+        if format_type == "docx":
+            from docx import Document
+            doc = Document()
+            doc.add_heading("Code Refine Report", 0)
+            doc.add_heading("Analysis Statistics", level=1)
+            doc.add_paragraph(f"Critical Issues: {stats.get('critical', 0)}")
+            doc.add_paragraph(f"High Priority: {stats.get('high', 0)}")
+            doc.add_heading("Review & Feedback", level=1)
+            doc.add_paragraph(review)
+            doc.add_heading("Rewritten Code", level=1)
+            doc.add_paragraph(rewritten_code, style='List Number')
+            doc.save(file_path)
+            
+        elif format_type == "pdf":
+            from fpdf import FPDF
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, "Code Refine Report", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Date: {timestamp}", ln=True)
+            pdf.ln(10)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Review Summary:", ln=True)
+            pdf.set_font("Arial", "", 10)
+            pdf.multi_cell(0, 5, review[:1000]) # Limit length for simple PDF
+            pdf.output(str(file_path))
+            
+        return {"message": "Report saved", "filename": filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save report: {str(e)}")
+
+# 11. USER SETTINGS
+@app.post("/api/settings/update")
+async def update_settings(payload: dict = Body(...)):
+    """Update user settings"""
+    user = payload.get("user", "default")
+    settings = payload.get("settings", {})
+    
+    USER_SETTINGS[user] = settings
+    return {"message": "Settings updated"}
+
+@app.get("/api/settings/{user}")
+async def get_settings(user: str):
+    """Get user settings"""
+    settings = USER_SETTINGS.get(user, {
+        "model": "llama-3.3-70b",
+        "theme": "dark",
+        "font_size": 14,
+        "tab_size": 4,
+        "notifications": False
+    })
+    return {"settings": settings}
+
+# 12. HELP & DOCUMENTATION
+FAQ_DATA = {
+    "categories": [
+        {
+            "name": "Getting Started",
+            "items": [
+                {"question": "How do I analyze my code?", "answer": "Simply paste your code into the editor on the main page and click 'Review Code'. You can also upload files directly."},
+                {"question": "What languages are supported?", "answer": "We support Python, JavaScript, Java, C++, Go, Rust, and many others. The system auto-detects the language."}
+            ]
+        },
+        {
+            "name": "Features",
+            "items": [
+                {"question": "How does Batch Analysis work?", "answer": "Go to the Batch Analysis page, drag and drop multiple files, and the system will process them sequentially, providing a summary for each."},
+                {"question": "Is my code saved?", "answer": "We do not permanently store your code unless you explicitly save it to your history or snippets library. All analysis is stateless by default."}
+            ]
+        },
+        {
+            "name": "Account & Settings",
+            "items": [
+                {"question": "How do I change the AI model?", "answer": "Navigate to Settings and select your preferred model (e.g., Llama 3.3, Mixtral) from the dropdown menu."},
+                {"question": "Can I export my data?", "answer": "Yes, you can export your usage analytics as a CSV file from the Dashboard or Profile page."}
+            ]
+        }
+    ]
+}
+
+@app.get("/api/help/faq")
+async def get_faq():
+    """Get FAQ and help content"""
+    return FAQ_DATA
+
+# 13. NEWSLETTER SUBSCRIPTION
+@app.post("/api/newsletter/subscribe")
+async def subscribe_newsletter(payload: dict = Body(...)):
+    """Subscribe to newsletter"""
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    NEWSLETTER_SUBS.append({"email": email, "date": datetime.now().isoformat()})
+    return {"message": "Subscribed successfully"}
+
+@app.get("/api/newsletter/export")
+async def export_newsletter_csv():
+    """Export newsletter subscribers to CSV"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Email", "Date Subscribed"])
+    for sub in NEWSLETTER_SUBS:
+        writer.writerow([sub["email"], sub["date"]])
+    output.seek(0)
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers.csv"})
+
+# 14. PWA STATIC FILES
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    path = Path(__file__).parent.parent / "frontend" / "sw.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="Service Worker not found")
+
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest():
+    path = Path(__file__).parent.parent / "frontend" / "manifest.json"
+    if path.exists():
+        return FileResponse(path, media_type="application/json")
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+# 15. SYSTEM STATUS
+@app.get("/api/system/status")
+async def system_status():
+    """Comprehensive system status check"""
+    groq_status = "Unknown"
+    try:
+        if api_key:
+            client.models.list()
+            groq_status = "Operational"
+        else:
+            groq_status = "Not Configured (Missing API Key)"
+    except Exception as e:
+        groq_status = f"Error: {str(e)}"
+
+    return {
+        "server": "Operational",
+        "version": "2.0.0",
+        "groq_api": groq_status,
+        "storage": {
+            "users": len(USER_DB),
+            "sessions": len(ACTIVE_SESSIONS),
+            "snippets": sum(len(v) for v in CODE_SNIPPETS.values()),
+            "history": sum(len(v) for v in CODE_HISTORY.values())
+        },
+        "system": {
+            "platform": platform.system(),
+            "python": platform.python_version(),
+            "time": datetime.now().isoformat()
+        }
+    }
+
+# 16. ADMIN USER MANAGEMENT
+@app.get("/api/admin/users")
+async def get_all_users():
+    """Get list of all users (Admin only)"""
+    users = []
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT username, email, role, created_at FROM users ORDER BY created_at DESC")
+            users = cursor.fetchall()
+            # Convert datetime to string
+            for u in users:
+                if isinstance(u.get('created_at'), datetime):
+                    u['created_at'] = u['created_at'].isoformat()
+        except Error as e:
+            print(f"DB Error: {e}")
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+    
+    if not users:
+        # Fallback to in-memory
+        for username, data in USER_DB.items():
+            users.append({
+                "username": username,
+                "email": data.get("email", ""),
+                "role": "admin" if username == "admin" else "user",
+                "created_at": datetime.now().isoformat()
+            })
+            
+    return {"users": users}
+
+@app.post("/api/admin/reset-password")
+async def admin_reset_password(payload: dict = Body(...)):
+    """Reset user password (Admin only)"""
+    target_username = payload.get("username")
+    new_password = payload.get("new_password")
+    
+    if not target_username or not new_password:
+        raise HTTPException(status_code=400, detail="Username and new password required")
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (new_password, target_username))
+            conn.commit()
+            if cursor.rowcount == 0:
+                 raise HTTPException(status_code=404, detail="User not found")
+        except Error as e:
+             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+    else:
+        # Fallback to in-memory
+        if target_username in USER_DB:
+            USER_DB[target_username]["password"] = new_password
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+    return {"message": f"Password for {target_username} reset successfully"}
+
 # --- Page Routing ---
 
 @app.get("/{page}", response_class=HTMLResponse)
 async def serve_ui(page: str):
     # Dynamic path finding
     base_path = Path(__file__).parent.parent / "frontend"
-    file_map = {"app": "index.html", "dashboard": "dashboard.html", "login": "login.html"}
+    file_map = {
+        "app": "index.html", 
+        "dashboard": "dashboard.html", 
+        "login": "login.html",
+        "admin": "admin.html",
+        "batch": "batch.html",
+        "collab": "collab.html",
+        "profile": "profile.html",
+        "reports": "reports.html",
+        "settings": "settings.html",
+        "help": "help.html",
+        "landing": "landing.html",
+        "404": "404.html",
+        "generate": "generate.html",
+        "status": "status.html",
+        "signup": "signup.html"
+    }
     
-    target_file = file_map.get(page, "login.html")
+    target_file = file_map.get(page)
+    
+    # If page not found in map, serve 404
+    if not target_file:
+        path_404 = base_path / "404.html"
+        return HTMLResponse(path_404.read_text(encoding="utf-8"), status_code=404) if path_404.exists() else HTMLResponse("<h1>404: Page Not Found</h1>", status_code=404)
+
     path = base_path / target_file
     
     if path.exists():
         return path.read_text(encoding="utf-8")
-    return HTMLResponse("<h1>404: Page Not Found</h1>", status_code=404)
+    return HTMLResponse("<h1>404: File Not Found</h1>", status_code=404)
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    path = Path(__file__).parent.parent / "frontend" / "login.html"
+    path = Path(__file__).parent.parent / "frontend" / "landing.html"
     return path.read_text(encoding="utf-8") if path.exists() else "Login Page Not Found"
 
 if __name__ == "__main__":

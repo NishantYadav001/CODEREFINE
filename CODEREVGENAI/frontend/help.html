@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help & Documentation - Code Refine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white font-sans">
+    <!-- Navbar -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-question-circle text-blue-500 text-2xl"></i>
+                <span class="text-xl font-bold">Help Center</span>
+            </div>
+            <a href="/app" class="text-gray-300 hover:text-white">Back to Editor</a>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-8 max-w-4xl">
+        <h1 class="text-3xl font-bold mb-8 text-center">How can we help you?</h1>
+
+        <div class="space-y-6" id="faq-container">
+            <!-- FAQs injected here -->
+            <p class="text-center text-gray-500">Loading documentation...</p>
+        </div>
+
+        <div class="mt-12 p-6 bg-gray-800 rounded-lg border border-gray-700">
+            <h2 class="text-xl font-bold mb-4">Need more support?</h2>
+            <p class="text-gray-400 mb-4">Contact our development team for specific issues or feature requests.</p>
+            <a href="mailto:support@coderefine.ai" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded inline-block">Contact Support</a>
+        </div>
+    </div>
+
+    <script>
+        async function loadFaq() {
+            try {
+                const res = await fetch('/api/help/faq');
+                const data = await res.json();
+                const container = document.getElementById('faq-container');
+                
+                container.innerHTML = '';
+                
+                data.categories.forEach(cat => {
+                    const section = document.createElement('div');
+                    section.className = 'mb-8';
+                    
+                    const title = document.createElement('h2');
+                    title.className = 'text-2xl font-bold mb-4 text-blue-400 border-b border-gray-700 pb-2';
+                    title.innerText = cat.name;
+                    section.appendChild(title);
+                    
+                    cat.items.forEach(item => {
+                        const details = document.createElement('details');
+                        details.className = 'bg-gray-800 rounded-lg mb-2 border border-gray-700 overflow-hidden group';
+                        
+                        const summary = document.createElement('summary');
+                        summary.className = 'p-4 cursor-pointer font-medium flex justify-between items-center hover:bg-gray-750 transition-colors';
+                        summary.innerHTML = `<span>${item.question}</span><i class="fas fa-chevron-down text-gray-500 group-open:rotate-180 transition-transform"></i>`;
+                        
+                        const answer = document.createElement('div');
+                        answer.className = 'p-4 text-gray-300 border-t border-gray-700 bg-gray-850';
+                        answer.innerHTML = item.answer;
+                        
+                        details.appendChild(summary);
+                        details.appendChild(answer);
+                        section.appendChild(details);
+                    });
+                    
+                    container.appendChild(section);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        loadFaq();
+    </script>
+</body>
+</html>

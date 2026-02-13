@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Refine - AI Powered Code Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Navbar -->
+    <nav class="container mx-auto p-6 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-code-branch text-blue-500 text-3xl"></i>
+            <span class="text-2xl font-bold">Code Refine</span>
+        </div>
+        <div class="space-x-4">
+            <a href="/login" class="text-gray-300 hover:text-white">Login</a>
+            <a href="/signup" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors">Get Started</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="container mx-auto px-6 py-16 text-center">
+        <h1 class="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+            Elevate Your Code Quality
+        </h1>
+        <p class="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
+            Instant AI-powered code reviews, security scanning, and automated refactoring for developers and teams.
+        </p>
+        <div class="flex justify-center gap-4">
+            <a href="/signup" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-bold transition-transform hover:scale-105">
+                Start analyzing now
+            </a>
+            <a href="#features" class="border border-gray-600 hover:border-gray-400 text-gray-300 px-8 py-3 rounded-lg text-lg transition-colors">
+                Learn more
+            </a>
+        </div>
+    </header>
+
+    <!-- Features Grid -->
+    <section id="features" class="bg-gray-800 py-16">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl font-bold text-center mb-12">Why Choose Code Refine?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="p-6 bg-gray-900 rounded-xl border border-gray-700 hover:border-blue-500 transition-colors">
+                    <i class="fas fa-robot text-blue-400 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-bold mb-2">AI-Driven Insights</h3>
+                    <p class="text-gray-400">Leverage Llama 3 and Mixtral models to detect bugs and optimize logic instantly.</p>
+                </div>
+                <div class="p-6 bg-gray-900 rounded-xl border border-gray-700 hover:border-green-500 transition-colors">
+                    <i class="fas fa-shield-alt text-green-400 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-bold mb-2">Security First</h3>
+                    <p class="text-gray-400">Automated OWASP vulnerability scanning to keep your applications secure.</p>
+                </div>
+                <div class="p-6 bg-gray-900 rounded-xl border border-gray-700 hover:border-purple-500 transition-colors">
+                    <i class="fas fa-users text-purple-400 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-bold mb-2">Real-time Collaboration</h3>
+                    <p class="text-gray-400">Code together with your team using our live WebSocket-powered editor.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="container mx-auto px-6 py-16 text-center">
+        <div class="max-w-2xl mx-auto bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border border-gray-700">
+            <h2 class="text-2xl font-bold mb-4">Stay Updated</h2>
+            <p class="text-gray-400 mb-6">Join our newsletter to get the latest features and coding tips.</p>
+            <form id="newsletter-form" class="flex flex-col md:flex-row gap-4">
+                <input type="email" id="email" placeholder="Enter your email" required 
+                    class="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold transition-colors">
+                    Subscribe
+                </button>
+            </form>
+            <p id="msg" class="mt-4 text-sm"></p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8 text-center text-gray-500">
+        <p>&copy; 2024 Code Refine AI. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.getElementById('newsletter-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const msg = document.getElementById('msg');
+            
+            try {
+                const res = await fetch('/api/newsletter/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                if (res.ok) {
+                    msg.innerText = "Thanks for subscribing!";
+                    msg.className = "mt-4 text-sm text-green-400";
+                    document.getElementById('email').value = '';
+                } else {
+                    msg.innerText = "Subscription failed. Please try again.";
+                    msg.className = "mt-4 text-sm text-red-400";
+                }
+            } catch (err) {
+                console.error(err);
+                msg.innerText = "An error occurred.";
+                msg.className = "mt-4 text-sm text-red-400";
+            }
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW Registered!', reg.scope)).catch(err => console.log('SW Failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

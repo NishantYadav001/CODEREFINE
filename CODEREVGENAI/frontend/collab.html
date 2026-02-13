@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Collaboration - Code Refine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-users text-green-500 text-2xl"></i>
+            <span class="text-xl font-bold">Live Session</span>
+            <span id="status" class="text-xs bg-red-600 px-2 py-1 rounded-full ml-2">Disconnected</span>
+        </div>
+        <a href="/app" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Exit Session</a>
+    </nav>
+
+    <!-- Editor Area -->
+    <div class="flex-1 flex p-4 gap-4">
+        <div class="flex-1 flex flex-col">
+            <div class="bg-gray-800 p-2 rounded-t-lg border-b border-gray-700 flex justify-between">
+                <span class="text-gray-400 text-sm">Shared Editor (Python)</span>
+                <span class="text-gray-500 text-xs">Type to broadcast changes</span>
+            </div>
+            <textarea id="code-editor" 
+                class="flex-1 bg-gray-900 text-gray-300 font-mono p-4 resize-none focus:outline-none border border-gray-700 rounded-b-lg"
+                spellcheck="false"
+                placeholder="Start typing code here..."></textarea>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-800 rounded-lg p-4 hidden md:block">
+            <h3 class="font-bold mb-4 text-gray-400">Session Info</h3>
+            <div class="text-sm text-gray-500">
+                <p class="mb-2">Changes are synced in real-time across all open tabs of this page.</p>
+                <p>Latency: <span id="latency" class="text-green-400">0ms</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const editor = document.getElementById('code-editor');
+        const statusBadge = document.getElementById('status');
+        let ws;
+        let isTyping = false;
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/collab`);
+
+            ws.onopen = () => {
+                statusBadge.innerText = "Connected";
+                statusBadge.className = "text-xs bg-green-600 px-2 py-1 rounded-full ml-2";
+            };
+
+            ws.onmessage = (event) => {
+                // Only update if we aren't the one typing to avoid cursor jumps
+                if (!isTyping) {
+                    editor.value = event.data;
+                }
+            };
+
+            ws.onclose = () => {
+                statusBadge.innerText = "Disconnected";
+                statusBadge.className = "text-xs bg-red-600 px-2 py-1 rounded-full ml-2";
+                setTimeout(connect, 3000); // Auto-reconnect
+            };
+        }
+
+        editor.addEventListener('input', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                isTyping = true;
+                ws.send(editor.value);
+                // Reset typing flag after short delay
+                setTimeout(() => isTyping = false, 500);
+            }
+        });
+
+        connect();
+    </script>
+</body>
+</html>

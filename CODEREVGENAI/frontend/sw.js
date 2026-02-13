@@ -1,24 +1,56 @@
-const CACHE_NAME = 'coderefine-v1';
-const ASSETS = [
-    './index.html',
+const CACHE_NAME = 'coderefine-v1.0.0';
+const ASSETS_TO_CACHE = [
+    '/',
+    '/landing',
+    '/login',
+    '/signup',
+    '/app',
+    '/generate',
+    '/dashboard',
+    '/admin',
+    '/batch',
+    '/collab',
+    '/profile',
+    '/reports',
+    '/settings',
+    '/help',
+    '/status',
+    '/manifest.json',
     'https://cdn.tailwindcss.com',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
 ];
 
-self.addEventListener('install', (e) => {
-    e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+// Install Event - Cache Assets
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
+    );
 });
 
-self.addEventListener('fetch', (e) => {
-    e.respondWith(
-        caches.match(e.request).then((response) => {
-            return response || fetch(e.request).then((fetchRes) => {
-                return caches.open(CACHE_NAME).then((cache) => {
-                    if(e.request.method === 'GET' && e.request.url.startsWith('http')) cache.put(e.request, fetchRes.clone());
-                    return fetchRes;
-                });
-            });
+// Activate Event - Cleanup Old Caches
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cache) => {
+                    if (cache !== CACHE_NAME) {
+                        return caches.delete(cache);
+                    }
+                })
+            );
         })
+    );
+});
+
+// Fetch Event - Network First, Fallback to Cache
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        fetch(event.request)
+            .catch(() => {
+                return caches.match(event.request);
+            })
     );
 });

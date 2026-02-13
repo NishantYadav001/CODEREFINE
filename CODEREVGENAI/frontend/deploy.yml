@@ -1,0 +1,34 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to Staging Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.STAGING_HOST }}
+        username: ${{ secrets.STAGING_USER }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        script: |
+          # Navigate to project directory (ensure this exists on server)
+          cd /opt/coderefine
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Rebuild and restart containers
+          docker-compose down
+          docker-compose up -d --build
+          
+          # Clean up unused images
+          docker image prune -f

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Status - Code Refine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-white font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-slate-800 border-b border-slate-700 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-heartbeat text-red-500 text-2xl"></i>
+                <span class="text-xl font-bold">System Status</span>
+            </div>
+            <a href="/admin" class="text-gray-300 hover:text-white">Back to Admin</a>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-8 max-w-4xl">
+        <div class="mb-8 flex items-center justify-between">
+            <h1 class="text-3xl font-bold">System Health Check</h1>
+            <button onclick="loadStatus()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i> Refresh
+            </button>
+        </div>
+
+        <!-- Main Status Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <h3 class="text-slate-400 text-sm font-bold uppercase mb-2">API Server</h3>
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-2xl font-bold text-green-400" id="server-status">Checking...</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2" id="server-version">Version: -</p>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <h3 class="text-slate-400 text-sm font-bold uppercase mb-2">AI Engine (Groq)</h3>
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full bg-gray-500" id="groq-indicator"></div>
+                    <span class="text-2xl font-bold text-gray-300" id="groq-status">Checking...</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">External Service</p>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <h3 class="text-slate-400 text-sm font-bold uppercase mb-2">Active Sessions</h3>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-users text-blue-400"></i>
+                    <span class="text-2xl font-bold text-blue-400" id="active-sessions">-</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Current Users</p>
+            </div>
+        </div>
+
+        <!-- Detailed Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2">In-Memory Storage</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Registered Users</span>
+                        <span class="font-mono text-white" id="store-users">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Code Snippets</span>
+                        <span class="font-mono text-white" id="store-snippets">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">History Versions</span>
+                        <span class="font-mono text-white" id="store-history">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2">System Info</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Platform</span>
+                        <span class="font-mono text-white" id="sys-platform">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Python Version</span>
+                        <span class="font-mono text-white" id="sys-python">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Server Time</span>
+                        <span class="font-mono text-white text-xs" id="sys-time">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/system/status');
+                const data = await res.json();
+
+                document.getElementById('server-status').innerText = data.server;
+                document.getElementById('server-version').innerText = `Version: ${data.version}`;
+                
+                const groqStatus = document.getElementById('groq-status');
+                const groqInd = document.getElementById('groq-indicator');
+                groqStatus.innerText = data.groq_api;
+                
+                if (data.groq_api === 'Operational') {
+                    groqStatus.className = "text-2xl font-bold text-green-400";
+                    groqInd.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
+                } else {
+                    groqStatus.className = "text-xl font-bold text-red-400";
+                    groqInd.className = "w-3 h-3 rounded-full bg-red-500";
+                }
+
+                document.getElementById('active-sessions').innerText = data.storage.sessions;
+                document.getElementById('store-users').innerText = data.storage.users;
+                document.getElementById('store-snippets').innerText = data.storage.snippets;
+                document.getElementById('store-history').innerText = data.storage.history;
+
+                document.getElementById('sys-platform').innerText = data.system.platform;
+                document.getElementById('sys-python').innerText = data.system.python;
+                document.getElementById('sys-time').innerText = new Date(data.system.time).toLocaleString();
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('server-status').innerText = "Offline";
+                document.getElementById('server-status').className = "text-2xl font-bold text-red-500";
+            }
+        }
+
+        loadStatus();
+    </script>
+</body>
+</html>

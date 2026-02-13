@@ -41,11 +41,11 @@
         }
 
         body.light-mode {
-            --bg-primary: #f1f5f9;
-            --bg-secondary: #e2e8f0;
-            --bg-tertiary: #cbd5e1;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e2e8f0;
             --text-primary: #0f172a;
-            --text-secondary: #475569;
+            --text-secondary: #334155;
             --border-color: #cbd5e1;
             --accent-color: #0284c7;
         }
@@ -169,6 +169,7 @@
         }
 
         /* File Tree Styles */
+        #fileSidebar { transition: width 0.3s ease, padding 0.3s ease; }
         .file-tree-item { cursor: pointer; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; }
         .file-tree-item:hover { background-color: #334155; color: #fff; }
         .file-tree-item.active { background-color: #0ea5e9; color: #fff; }
@@ -176,14 +177,13 @@
         .hidden { display: none; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-50 min-h-screen">
+<body class="bg-slate-900 text-slate-50 h-screen flex flex-col overflow-hidden">
     <!-- Toast Container -->
     <div id="toast-container"></div>
 
-    <nav class="bg-slate-800 p-4 border-b border-slate-700 shadow-xl">
+    <nav class="bg-slate-800 p-4 border-b border-slate-700 shadow-xl flex-none z-20">
         <div class="container mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <span class="text-3xl"></span>
                 <div>
                     <h1 id="platform-title" class="text-xl font-bold text-sky-400 leading-none">Code Refine</h1>
                     <p id="platform-subtitle" class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Developer Edition</p>
@@ -211,34 +211,10 @@
     </nav>
 
     <!-- Main Layout: Sidebar + Content -->
-    <div class="flex h-[calc(100vh-64px)] overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
         
-        <!-- File Explorer Sidebar -->
-        <aside class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col hidden md:flex">
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Explorer</span>
-                <div class="flex gap-2">
-                    <button id="refreshExplorerBtn" class="text-slate-400 hover:text-white" title="Refresh"><i class="fas fa-sync-alt text-xs"></i></button>
-                    <button id="closeFolderBtn" class="text-slate-400 hover:text-red-400" title="Close Folder"><i class="fas fa-times text-xs"></i></button>
-                </div>
-            </div>
-            
-            <div id="fileExplorer" class="flex-1 overflow-y-auto p-2 space-y-1">
-                <!-- Empty State -->
-                <div id="emptyExplorer" class="text-center mt-10 px-4">
-                    <div class="text-slate-600 text-4xl mb-3"><i class="fas fa-folder-open"></i></div>
-                    <p class="text-slate-400 text-sm mb-4">No folder opened</p>
-                    <button id="sidebarOpenBtn" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all">
-                        Open Folder
-                    </button>
-                </div>
-                <!-- Tree will be injected here -->
-                <div id="fileTreeContent" class="hidden"></div>
-            </div>
-        </aside>
-
         <!-- Main Workspace -->
-        <main class="flex-1 overflow-y-auto p-6 bg-slate-900 relative">
+        <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-900 relative scroll-smooth">
             <div class="container mx-auto max-w-7xl">
         <!-- Mobile Tab Navigation -->
         <div class="lg:hidden flex mb-4 bg-slate-800 rounded-xl p-1 border border-slate-700">
@@ -281,6 +257,10 @@
                             <div class="flex-1">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1 block">Import Source</label>
                                 <div class="flex gap-2">
+                                    <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 transition-all shadow-sm">
+                                        <i class="fas fa-folder-open text-yellow-400"></i> <span class="hidden sm:inline">Open File</span>
+                                        <input type="file" id="localFile" class="hidden">
+                                    </label>
                                     <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 transition-all shadow-sm">
                                         <i class="fas fa-camera text-sky-400"></i> <span class="hidden sm:inline">Scan Image</span>
                                         <input type="file" id="ocrFile" accept="image/*" class="hidden">
@@ -362,7 +342,7 @@
                     
                     <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                         <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
-                            <i class="fas fa-brain text-purple-400 mr-2"></i>AI Model
+                            <i class="fas fa-brain text-emerald-400 mr-2"></i>AI Model
                         </label>
                         <select id="modelSelectorGeneration" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-purple-500/50">
                             <option value="llama-3.3-70b">🦙 Llama 3.3 70B (Fast & Accurate)</option>
@@ -393,7 +373,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-bold text-slate-300 mb-2">
-                                <i class="fas fa-code text-sky-400 mr-2"></i>Language
+                                <i class="fas fa-code text-emerald-400 mr-2"></i>Language
                             </label>
                             <select id="generationLanguage" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50">
                                 <option value="python">Python</option>
@@ -459,7 +439,7 @@
                     </div>
                 </div>
                 
-                <div id="reviewResults" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl flex-grow overflow-y-auto max-h-[550px]">
+                <div id="reviewResults" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex-grow overflow-y-auto max-h-[550px]">
                     <div class="grid grid-cols-4 gap-3 text-center mb-6">
                         <div class="p-2 bg-red-900/40 border border-red-700/50 rounded-xl">
                             <p id="critical-count" class="font-bold text-2xl text-red-400">0</p>
@@ -492,7 +472,7 @@
                     </div>
                     <div id="chatHistory" class="flex-grow overflow-y-auto space-y-4 mb-4 pr-2">
                         <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
+                            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
                             <div class="bg-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 border border-slate-600">
                                 Hello! I'm ready to answer questions about your code.
                             </div>
@@ -500,8 +480,8 @@
                     </div>
                     <div class="relative">
                         <input type="text" id="chatInput" placeholder="Ask a question about the code..." 
-                            class="w-full bg-slate-900/50 border border-slate-600 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-200 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all">
-                        <button id="sendChatBtn" class="absolute right-2 top-2 p-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-all">
+                            class="w-full bg-slate-900/50 border border-slate-600 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-200 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                        <button id="sendChatBtn" class="absolute right-2 top-2 p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all">
                             <i class="fas fa-paper-plane text-xs"></i>
                         </button>
                     </div>
@@ -539,21 +519,26 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="codeDisplaySection">
-                <div id="originalCodeSection">
-                    <h3 class="text-sm font-bold mb-2 text-slate-500 px-2 uppercase italic">Original Input</h3>
-                    <pre class="code-output rounded-xl p-4 min-h-[200px]"><code id="originalCodeOutput" class="language-python"></code></pre>
+                <div id="originalCodeSection" class="flex flex-col h-full">
+                    <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider pl-2">Original Input</span>
+                        <div class="flex gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                        </div>
+                    </div>
+                    <pre class="code-output rounded-b-xl border border-slate-700 p-4 min-h-[300px] flex-1 text-sm"><code id="originalCodeOutput" class="language-python"></code></pre>
                 </div>
-                <div class="relative" id="generatedCodeSection">
-                    <h3 class="text-sm font-bold mb-2 text-sky-400 px-2 uppercase italic">AI Rewritten Version</h3>
-                     <pre class="code-output rounded-xl p-4 min-h-[200px] border-sky-900/30"><code id="rewrittenCodeOutput" class="language-python"></code></pre>
-                     <div class="absolute top-10 right-4 flex gap-2">
-                         <button id="copyBtn" class="bg-slate-700/80 hover:bg-sky-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-600">
-                             <i class="fas fa-copy mr-1"></i> Copy Code
-                         </button>
-                         <button id="downloadCodeBtn" class="hidden bg-slate-700/80 hover:bg-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-600">
-                             <i class="fas fa-download mr-1"></i> Download Code
-                         </button>
-                     </div>
+                <div class="relative flex flex-col h-full" id="generatedCodeSection">
+                     <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
+                        <span class="text-xs font-bold text-sky-400 uppercase tracking-wider pl-2 flex items-center gap-2"><i class="fas fa-wand-magic-sparkles"></i> AI Rewritten</span>
+                        <div class="flex gap-2">
+                             <button id="copyBtn" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
+                             <button id="downloadCodeBtn" class="hidden text-slate-400 hover:text-white transition-colors px-2" title="Download Code"><i class="fas fa-download"></i></button>
+                        </div>
+                    </div>
+                     <pre class="code-output rounded-b-xl border border-slate-700 border-sky-500/30 p-4 min-h-[300px] flex-1 text-sm relative"><code id="rewrittenCodeOutput" class="language-python"></code></pre>
                 </div>
             </div>
 
@@ -754,11 +739,6 @@
             if (window.appInitialized) return;
             window.appInitialized = true;
 
-            // Initialize IndexedDB Store
-            const dbStore = idbKeyval.createStore('coderefine-db', 'workspace-store');
-            window.dbStore = dbStore;
-            window.currentDirHandle = null;
-
             // Register Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed', err));
@@ -808,8 +788,6 @@
                 get('settingFontSize').value = savedSettings.fontSize;
                 get('settingMinimap').checked = savedSettings.minimap;
 
-                // Restore Workspace
-                restoreWorkspace();
             });
 
             // Fetch Piston Runtimes
@@ -868,7 +846,7 @@
 
                 // --- 2. UI SETUP ---
                 const config = modes[userType] || modes.developer;
-                if (get('platform-title')) get('platform-title').innerText = config.title;
+                // if (get('platform-title')) get('platform-title').innerText = config.title; // Keep new logo
                 if (get('platform-subtitle')) get('platform-subtitle').innerText = config.sub;
                 if (get('user-badge')) get('user-badge').innerText = config.badge;
 
@@ -945,7 +923,7 @@
                     }
                     if (generatedSection) {
                         const h3 = generatedSection.querySelector('h3');
-                        if (h3) h3.innerHTML = '<i class="fas fa-wand-magic-sparkles text-sky-400 mr-2"></i>AI Rewritten Version';
+                        if (h3) h3.innerHTML = '<i class="fas fa-wand-magic-sparkles text-emerald-400 mr-2"></i>AI Rewritten Version';
                     }
                     
                     if (originalOutput) {
@@ -967,7 +945,7 @@
 
                     try {
                         const endpoint = action === 'review' ? 'review' : 'rewrite';
-                        const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                        const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                         const response = await fetch(`http://localhost:8000/api/${endpoint}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1045,6 +1023,9 @@
                     if(toolsSection) toolsSection.classList.remove('hidden');
                     if(terminalContainer) terminalContainer.classList.remove('hidden');
                     if(get('visualizerContainer')) get('visualizerContainer').classList.add('hidden');
+                    
+                    // Scroll to output
+                    setTimeout(() => terminalContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 
                     terminalOutput.innerHTML = '<span class="animate-pulse text-yellow-400">⏳ Compiling and executing...</span>';
 
@@ -1065,6 +1046,9 @@
                     // Find runtime version
                     const runtime = window.pistonRuntimes ? window.pistonRuntimes.find(r => r.language === lang) : null;
                     const version = runtime ? runtime.version : "*";
+                    
+                    // Escape HTML helper
+                    const escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
                     try {
                         const res = await fetch('https://emkc.org/api/v2/piston/execute', {
@@ -1082,8 +1066,8 @@
                             let output = data.run.stdout || "";
                             let error = data.run.stderr || "";
                             terminalOutput.innerHTML = "";
-                            if (output) terminalOutput.innerHTML += `<span class="text-emerald-300">${output}</span>`;
-                            if (error) terminalOutput.innerHTML += `<span class="text-red-400">\n${error}</span>`;
+                            if (output) terminalOutput.innerHTML += `<span class="text-emerald-300">${escapeHtml(output)}</span>`;
+                            if (error) terminalOutput.innerHTML += `<span class="text-red-400">\n${escapeHtml(error)}</span>`;
                             if (!output && !error) terminalOutput.innerHTML = `<span class="text-slate-500 italic">Program executed successfully with no output.</span>`;
                         } else {
                             terminalOutput.innerHTML = `<span class="text-red-400">Execution failed: ${data.message || "Unknown error"}</span>`;
@@ -1134,7 +1118,7 @@
                     showToast("Minifying code...", "info");
 
                     try {
-                        const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                        const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                         const lang = window.monacoEditor.getModel().getLanguageId();
                         
                         const response = await fetch(`http://localhost:8000/api/generate`, {
@@ -1183,7 +1167,7 @@
                     // Use the existing generation endpoint to create Mermaid syntax
                     try {
                         const prompt = "Generate a Mermaid.js flowchart (graph TD) representing the logic of this code. Return ONLY the mermaid code inside a markdown block (```mermaid ... ```). Do not explain.";
-                        const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                        const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                         
                         const response = await fetch(`http://localhost:8000/api/generate`, {
                             method: 'POST',
@@ -1265,7 +1249,7 @@
 
                         try {
                             const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
-                            const model = get('modelSelectorAnalysis') ? get('modelSelectorAnalysis').value : 'llama-3.3-70b';
+                            const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                             
                             const res = await fetch('http://localhost:8000/api/generate', {
                                 method: 'POST',
@@ -1486,7 +1470,7 @@
 
                 const commands = [
                     { label: 'Run Review', icon: 'microscope', action: () => get('reviewBtn').click() },
-                    { label: 'Generate Code', icon: 'wand-magic-sparkles', action: () => get('generateBtn').click() },
+                    { label: 'Generate Code', icon: 'wand-magic-sparkles', action: () => window.location.href = '/generate' },
                     { label: 'Format Code', icon: 'align-left', action: () => formatCode() },
                     { label: 'Minify Code', icon: 'compress-arrows-alt', action: () => minifyCode() },
                     { label: 'Run Code', icon: 'play', action: () => runCode() },
@@ -1549,105 +1533,25 @@
                     mTabChat.onclick = () => setMobileView('chat');
                 }
 
-                // --- FILE SYSTEM & WORKSPACE ---
-                
-                async function openFolder() {
+                // --- FILE OPEN LOGIC ---
+                setChange('localFile', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
                     try {
-                        const dirHandle = await window.showDirectoryPicker();
-                        window.currentDirHandle = dirHandle;
-                        
-                        // Persist handle
-                        await idbKeyval.set('projectHandle', dirHandle, window.dbStore);
-                        
-                        await renderFileTree(dirHandle);
-                        showToast(`📂 Project opened: ${dirHandle.name}`, 'success');
+                        const text = await file.text();
+                        if (window.monacoEditor) {
+                            window.monacoEditor.setValue(text);
+                            // Try to detect language from extension
+                            const ext = file.name.split('.').pop();
+                            const langMap = {'js':'javascript', 'py':'python', 'html':'html', 'css':'css', 'json':'json', 'md':'markdown', 'ts':'typescript', 'java':'java', 'cpp':'cpp', 'c':'c', 'cs':'csharp', 'go':'go', 'rs':'rust', 'sql':'sql'};
+                            if(langMap[ext]) monaco.editor.setModelLanguage(window.monacoEditor.getModel(), langMap[ext]);
+                        }
+                        showToast(`📂 Opened: ${file.name}`, 'success');
                     } catch (err) {
-                        console.error(err);
-                        showToast("Could not open folder", "error");
+                        showToast("Failed to read file", "error");
                     }
-                }
-
-                async function renderFileTree(dirHandle) {
-                    const explorer = get('fileExplorer');
-                    const emptyState = get('emptyExplorer');
-                    const treeContent = get('fileTreeContent');
-                    
-                    emptyState.classList.add('hidden');
-                    treeContent.classList.remove('hidden');
-                    treeContent.innerHTML = ''; // Clear
-
-                    const rootUl = document.createElement('div');
-                    await buildTreeRecursive(dirHandle, rootUl);
-                    treeContent.appendChild(rootUl);
-                }
-
-                async function buildTreeRecursive(dirHandle, container, level = 0) {
-                    for await (const entry of dirHandle.values()) {
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'file-tree-item';
-                        itemDiv.style.paddingLeft = `${level * 12 + 8}px`;
-                        
-                        if (entry.kind === 'file') {
-                            itemDiv.innerHTML = `<i class="fas fa-file-code text-slate-500"></i> ${entry.name}`;
-                            itemDiv.onclick = async () => {
-                                // Highlight active
-                                document.querySelectorAll('.file-tree-item').forEach(el => el.classList.remove('active'));
-                                itemDiv.classList.add('active');
-                                
-                                // Load file content
-                                const file = await entry.getFile();
-                                const text = await file.text();
-                                if(window.monacoEditor) {
-                                    window.monacoEditor.setValue(text);
-                                    // Try to detect language from extension
-                                    const ext = entry.name.split('.').pop();
-                                    const langMap = {'js':'javascript', 'py':'python', 'html':'html', 'css':'css', 'json':'json', 'md':'markdown', 'ts':'typescript'};
-                                    if(langMap[ext]) monaco.editor.setModelLanguage(window.monacoEditor.getModel(), langMap[ext]);
-                                }
-                            };
-                            container.appendChild(itemDiv);
-                        } else if (entry.kind === 'directory') {
-                            // Folder Logic
-                            itemDiv.innerHTML = `<i class="fas fa-folder text-yellow-500"></i> ${entry.name}`;
-                            const subContainer = document.createElement('div');
-                            subContainer.className = 'hidden'; // Collapsed by default
-                            
-                            itemDiv.onclick = () => {
-                                const isOpen = !subContainer.classList.contains('hidden');
-                                subContainer.classList.toggle('hidden');
-                                itemDiv.querySelector('i').className = isOpen ? 'fas fa-folder text-yellow-500' : 'fas fa-folder-open text-yellow-500';
-                            };
-                            
-                            container.appendChild(itemDiv);
-                            container.appendChild(subContainer);
-                            // Lazy load subfolders could be implemented here, but for now we recurse
-                            await buildTreeRecursive(entry, subContainer, level + 1);
-                        }
-                    }
-                }
-
-                async function restoreWorkspace() {
-                    try {
-                        const handle = await idbKeyval.get('projectHandle', window.dbStore);
-                        if (handle) {
-                            // Browser requires permission verification on reload
-                            const perm = await handle.queryPermission({ mode: 'read' });
-                            if (perm === 'granted') {
-                                window.currentDirHandle = handle;
-                                await renderFileTree(handle);
-                            } else {
-                                // If permission needed, we can't auto-load, but we know a project exists
-                                // We could show a "Reload Previous Project" button
-                            }
-                        }
-                    } catch (e) { console.log("No workspace to restore"); }
-                }
-
-                setClick('sidebarOpenBtn', openFolder);
-                setClick('refreshExplorerBtn', () => window.currentDirHandle && renderFileTree(window.currentDirHandle));
-                setClick('closeFolderBtn', async () => {
-                    await idbKeyval.del('projectHandle', window.dbStore);
-                    location.reload();
+                    e.target.value = ''; // Reset
                 });
 
                 // Generate Code
@@ -1665,7 +1569,7 @@
                     const style = get('generationStyle') ? get('generationStyle').value : 'production';
                     
                     const feedback = get('reviewFeedback');
-                    const model = get('modelSelectorGeneration') ? get('modelSelectorGeneration').value : 'llama-3.3-70b';
+                    const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                     const framework = get('generationFramework') ? get('generationFramework').value : 'none';
                     
                     // Context Logic
@@ -1721,37 +1625,13 @@
                         const data = await streamAIResponse(`${styleMap[style]}${frameworkStr}: ${finalPrompt}`);
                         const generatedCode = data.generated_code || '';
                         
-                        // UI Updates
-                        const codeDisplaySection = get('codeDisplaySection');
-                        const generationPlaceholder = get('generationPlaceholder');
-                        const originalSection = get('originalCodeSection');
-                        const generatedSection = get('generatedCodeSection');
-                        const codeElement = get('rewrittenCodeOutput');
-                        const complexitySection = get('complexity-section');
-                        const downloadSection = get('download-section');
-                        const downloadBtn = get('downloadCodeBtn');
-                        const diffBtn = get('toggleDiffBtn');
-
-                        if (generationPlaceholder) generationPlaceholder.classList.add('hidden');
-                        if (codeDisplaySection) {
-                            codeDisplaySection.classList.remove('hidden');
-                            codeDisplaySection.classList.remove('lg:grid-cols-2');
-                            codeDisplaySection.classList.add('lg:grid-cols-1');
+                        // Insert into Monaco
+                        if(window.monacoEditor) {
+                            window.monacoEditor.setValue(generatedCode);
+                            // Try to set language
+                            const langMap = {'python':'python', 'javascript':'javascript', 'java':'java', 'cpp':'cpp', 'csharp':'csharp', 'go':'go', 'rust':'rust', 'typescript':'typescript'};
+                            if(langMap[language]) monaco.editor.setModelLanguage(window.monacoEditor.getModel(), langMap[language]);
                         }
-                        if (originalSection) originalSection.style.display = 'none';
-                        
-                        if (generatedSection) {
-                            const h3 = generatedSection.querySelector('h3');
-                            if (h3) h3.innerHTML = '<i class="fas fa-sparkles text-emerald-400 mr-2"></i>Generated Code';
-                        }
-                        
-                        if (codeElement) {
-                            codeElement.textContent = generatedCode;
-                            codeElement.className = `language-${language}`;
-                            if (typeof hljs !== 'undefined') hljs.highlightElement(codeElement);
-                        }
-
-                        if (complexitySection) complexitySection.classList.add('hidden');
 
                         if (feedback) {
                             feedback.innerHTML = `<div class='bg-emerald-900/20 border border-emerald-700/50 rounded-lg p-4 mb-4'>
@@ -1759,10 +1639,6 @@
                                 <p class='text-emerald-300 text-sm mt-1'>Language: <strong>${language.toUpperCase()}</strong> | Style: <strong>${style}</strong></p>
                             </div>`;
                         }
-
-                        if (downloadSection) downloadSection.classList.remove('hidden');
-                        if (downloadBtn) downloadBtn.classList.remove('hidden');
-                        if (diffBtn) diffBtn.classList.add('hidden');
 
                         showToast('✅ Code generated! Advanced tools ready', 'success');
                         
@@ -1799,7 +1675,7 @@
                         const btn = get('copyBtn');
                         if (btn) {
                             const originalHtml = btn.innerHTML;
-                            btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                            btn.innerHTML = '<i class="fas fa-check text-green-400"></i>';
                             setTimeout(() => btn.innerHTML = originalHtml, 2000);
                         }
                         showToast("Code copied to clipboard", "success");
@@ -1861,11 +1737,11 @@
                 
                 // Mode Switching - UNIFIED HANDLER
                 const setupModeButtons = () => {
-                    const btnAnalysis = get('modeAnalysis');
-                    const btnGenerate = get('modeGenerate');
+                    const btnAnalysis = document.getElementById('modeAnalysis');
+                    const btnGenerate = document.getElementById('modeGenerate');
                     
-                    const panelAnalysis = get('analysis-panel');
-                    const panelGeneration = get('generation-panel');
+                    const toolsAnalysis = document.getElementById('analysis-tools');
+                    const toolsGeneration = document.getElementById('generation-tools');
                     
                     const setActive = (btn) => {
                         [btnAnalysis, btnGenerate].forEach(b => {
@@ -1885,38 +1761,17 @@
                     if (btnAnalysis) {
                         btnAnalysis.addEventListener('click', (e) => {
                             if(e) e.preventDefault();
-                            if (panelAnalysis) panelAnalysis.classList.remove('hidden');
-                            if (panelGeneration) panelGeneration.classList.add('hidden');
+                            if (toolsAnalysis) toolsAnalysis.classList.remove('hidden');
+                            if (toolsGeneration) toolsGeneration.classList.add('hidden');
                             setActive(btnAnalysis);
-                            
-                            // Reset view
-                            const originalSection = get('originalCodeSection');
-                            if (originalSection) originalSection.style.display = 'block';
-                            const codeDisplaySection = get('codeDisplaySection');
-                            if (codeDisplaySection) {
-                                codeDisplaySection.classList.remove('lg:grid-cols-1');
-                                codeDisplaySection.classList.add('lg:grid-cols-2');
-                                codeDisplaySection.classList.remove('hidden');
-                            }
                         });
                     }
 
                     if (btnGenerate) {
                         btnGenerate.addEventListener('click', (e) => {
                             if(e) e.preventDefault();
-                            if (panelAnalysis) panelAnalysis.classList.add('hidden');
-                            if (panelGeneration) panelGeneration.classList.remove('hidden');
-                            setActive(btnGenerate);
-                            
-                            // Reset view
-                            const originalSection = get('originalCodeSection');
-                            if (originalSection) originalSection.style.display = 'none';
-                            const codeDisplaySection = get('codeDisplaySection');
-                            if (codeDisplaySection) {
-                                codeDisplaySection.classList.remove('lg:grid-cols-2');
-                                codeDisplaySection.classList.add('lg:grid-cols-1');
-                                codeDisplaySection.classList.remove('hidden');
-                            }
+                            // Navigate to dedicated generation page
+                            window.location.href = '/generate';
                         });
                     }
                 };
@@ -2128,8 +1983,7 @@
                         if (btn) btn.click();
                     } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
                         e.preventDefault();
-                        const btn = get('generateBtn');
-                        if (btn) btn.click();
+                        window.location.href = '/generate';
                     } else if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                         e.preventDefault();
                         const search = get('search-results');

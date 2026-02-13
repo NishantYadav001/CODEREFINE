@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Code Refine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-cog text-blue-500 text-2xl"></i>
+                <span class="text-xl font-bold">Settings</span>
+            </div>
+            <a href="/app" class="text-gray-300 hover:text-white">Back to Editor</a>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-8 max-w-2xl">
+        <div class="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-8">
+            <h2 class="text-2xl font-bold mb-6 border-b border-gray-700 pb-4">Global Preferences</h2>
+            
+            <form id="settings-form" class="space-y-6">
+                
+                <!-- AI Model Preference -->
+                <div>
+                    <label class="block text-gray-400 mb-2 font-bold">Default AI Model</label>
+                    <p class="text-xs text-gray-500 mb-2">Select the model used for code generation and reviews.</p>
+                    <select id="default-model" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                        <option value="llama-3.3-70b">Llama 3.3 70B (Balanced)</option>
+                        <option value="llama-3.1-405b">Llama 3.1 405B (High Quality)</option>
+                        <option value="mixtral-8x7b-32768">Mixtral 8x7B (Fastest)</option>
+                    </select>
+                </div>
+
+                <!-- Appearance -->
+                <div>
+                    <label class="block text-gray-400 mb-2 font-bold">Theme Preference</label>
+                    <select id="theme-pref" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                        <option value="dark">Dark Mode</option>
+                        <option value="light">Light Mode</option>
+                    </select>
+                </div>
+
+                <!-- Editor Settings -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-400 mb-2 font-bold">Font Size (px)</label>
+                        <input type="number" id="font-size" value="14" min="10" max="24" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 mb-2 font-bold">Tab Size</label>
+                        <select id="tab-size" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                            <option value="2">2 Spaces</option>
+                            <option value="4">4 Spaces</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="flex items-center justify-between pt-2">
+                    <div>
+                        <label class="block text-gray-400 font-bold">Email Notifications</label>
+                        <p class="text-xs text-gray-500">Receive weekly summaries of your coding activity.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="notifications" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <div class="pt-6 border-t border-gray-700 flex justify-end">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition-colors flex items-center gap-2">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                </div>
+                <p id="msg" class="text-center text-sm mt-2"></p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const username = localStorage.getItem('username') || 'default';
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(`/api/settings/${username}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const settings = data.settings;
+                    
+                    if (settings) {
+                        document.getElementById('default-model').value = settings.model || 'llama-3.3-70b';
+                        document.getElementById('theme-pref').value = settings.theme || 'dark';
+                        document.getElementById('font-size').value = settings.font_size || 14;
+                        document.getElementById('tab-size').value = settings.tab_size || 4;
+                        document.getElementById('notifications').checked = settings.notifications || false;
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load settings", e);
+            }
+        }
+
+        document.getElementById('settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const settings = {
+                model: document.getElementById('default-model').value,
+                theme: document.getElementById('theme-pref').value,
+                font_size: parseInt(document.getElementById('font-size').value),
+                tab_size: parseInt(document.getElementById('tab-size').value),
+                notifications: document.getElementById('notifications').checked
+            };
+
+            const res = await fetch('/api/settings/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, settings })
+            });
+
+            const msg = document.getElementById('msg');
+            if (res.ok) {
+                msg.innerText = "Settings saved successfully!";
+                msg.className = "text-center text-sm mt-2 text-green-400";
+                
+                // Apply theme immediately if changed (basic implementation)
+                localStorage.setItem('theme', settings.theme);
+            } else {
+                msg.innerText = "Failed to save settings.";
+                msg.className = "text-center text-sm mt-2 text-red-400";
+            }
+        });
+
+        loadSettings();
+    </script>
+</body>
+</html>

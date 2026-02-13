@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Refine - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-shield-alt text-blue-500 text-2xl"></i>
+                <span class="text-xl font-bold">Admin Console</span>
+            </div>
+            <div class="space-x-4">
+                <a href="/" class="hover:text-blue-400">Home</a>
+                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6">System Overview</h1>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h3 class="text-gray-400 text-sm">Total Users</h3>
+                <p class="text-3xl font-bold text-blue-400" id="total-users">-</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h3 class="text-gray-400 text-sm">Total Reviews</h3>
+                <p class="text-3xl font-bold text-green-400" id="total-reviews">-</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h3 class="text-gray-400 text-sm">AI Generations</h3>
+                <p class="text-3xl font-bold text-purple-400" id="total-gens">-</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h3 class="text-gray-400 text-sm">Top Language</h3>
+                <p class="text-3xl font-bold text-yellow-400" id="top-lang">-</p>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h3 class="text-xl font-bold mb-4">Language Usage Distribution</h3>
+                <canvas id="langChart"></canvas>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h3 class="text-xl font-bold mb-4">System Health</h3>
+                <div id="health-status" class="space-y-4">
+                    <div class="flex justify-between border-b border-gray-700 pb-2">
+                        <span>API Status</span>
+                        <span id="api-status" class="text-green-500 font-bold">Checking...</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-700 pb-2">
+                        <span>Model</span>
+                        <span id="model-name" class="text-gray-300">-</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-700 pb-2">
+                        <span>OCR Available</span>
+                        <span id="ocr-status" class="text-gray-300">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Version</span>
+                        <span id="sys-version" class="text-gray-300">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management Section -->
+        <div class="mt-8 bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
+            <h2 class="text-xl font-bold mb-4">User Management</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-700 text-slate-300 text-sm uppercase">
+                            <th class="p-3 border-b border-slate-600">Username</th>
+                            <th class="p-3 border-b border-slate-600">Email</th>
+                            <th class="p-3 border-b border-slate-600">Joined</th>
+                            <th class="p-3 border-b border-slate-600">Role</th>
+                            <th class="p-3 border-b border-slate-600">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list" class="divide-y divide-slate-700 text-sm">
+                        <!-- Users injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Reset Modal -->
+    <div id="resetModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold text-white mb-4">Reset Password</h3>
+            <p class="text-slate-400 mb-4">Enter new password for <span id="reset-target-user" class="text-white font-bold"></span></p>
+            <input type="password" id="new-password" placeholder="New Password" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none mb-4">
+            <div class="flex justify-end gap-2">
+                <button onclick="closeResetModal()" class="text-slate-400 hover:text-white px-4 py-2">Cancel</button>
+                <button onclick="confirmResetPassword()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">Reset Password</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            // Fetch Analytics
+            const analyticsRes = await fetch('/api/analytics/dashboard/global');
+            const analytics = await analyticsRes.json();
+
+            document.getElementById('total-users').innerText = analytics.total_users;
+            document.getElementById('total-reviews').innerText = analytics.total_reviews;
+            document.getElementById('total-gens').innerText = analytics.total_generations;
+            document.getElementById('top-lang').innerText = analytics.most_used_language;
+
+            // Chart
+            const ctx = document.getElementById('langChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(analytics.languages_used),
+                    datasets: [{
+                        data: Object.values(analytics.languages_used),
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: 'white' } } } }
+            });
+
+            // Fetch Health
+            const healthRes = await fetch('/api/health');
+            const health = await healthRes.json();
+            
+            document.getElementById('api-status').innerText = health.status.toUpperCase();
+            document.getElementById('model-name').innerText = health.model;
+            document.getElementById('ocr-status').innerText = health.ocr_available ? "Yes" : "No";
+            document.getElementById('sys-version').innerText = health.version;
+        }
+
+        async function loadUsers() {
+            const tbody = document.getElementById('users-list');
+            try {
+                const res = await fetch('/api/admin/users');
+                const data = await res.json();
+                
+                tbody.innerHTML = '';
+                data.users.forEach(user => {
+                    const joined = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';
+                    const row = `
+                        <tr class="hover:bg-slate-700/50 transition-colors">
+                            <td class="p-3 font-medium">${user.username}</td>
+                            <td class="p-3 text-slate-400">${user.email}</td>
+                            <td class="p-3 text-slate-400 text-xs">${joined}</td>
+                            <td class="p-3"><span class="px-2 py-1 rounded-full text-xs bg-slate-600">${user.role}</span></td>
+                            <td class="p-3">
+                                <button onclick="openResetModal('${user.username}')" class="text-blue-400 hover:text-blue-300 text-xs font-bold">
+                                    <i class="fas fa-key"></i> Reset Pass
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (e) {
+                console.error("Failed to load users", e);
+            }
+        }
+        
+        let currentResetUser = null;
+        
+        function openResetModal(username) {
+            currentResetUser = username;
+            document.getElementById('reset-target-user').innerText = username;
+            document.getElementById('new-password').value = '';
+            document.getElementById('resetModal').classList.remove('hidden');
+        }
+        
+        function closeResetModal() {
+            document.getElementById('resetModal').classList.add('hidden');
+            currentResetUser = null;
+        }
+        
+        async function confirmResetPassword() {
+            const newPass = document.getElementById('new-password').value;
+            if (!newPass) return alert("Please enter a password");
+            
+            try {
+                const res = await fetch('/api/admin/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentResetUser, new_password: newPass })
+                });
+                
+                if (res.ok) {
+                    alert("Password reset successfully");
+                    closeResetModal();
+                } else {
+                    const data = await res.json();
+                    alert("Error: " + data.detail);
+                }
+            } catch (e) {
+                alert("Request failed");
+            }
+        }
+
+        loadData();
+        loadUsers();
+    </script>
+</body>
+</html>

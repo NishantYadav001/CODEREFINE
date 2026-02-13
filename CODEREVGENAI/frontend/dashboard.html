@@ -14,9 +14,14 @@
                 <h1 class="text-3xl font-bold text-sky-400"><i class="fas fa-chart-line mr-3"></i>Student Dashboard</h1>
                 <p class="text-slate-400">Monitoring student engagement and code integrity</p>
             </div>
-            <a href="/app?userType=organisation" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
-                <i class="fas fa-arrow-left mr-2"></i>Back to Tool
-            </a>
+            <div class="flex gap-3">
+                <a href="/app?userType=organisation" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Tool
+                </a>
+                <button onclick="logout()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-lg border border-red-900/50 text-sm transition-all">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                </button>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -75,6 +80,15 @@
                 await fetch('http://localhost:8000/api/reset-plagiarism', { method: 'POST' });
                 location.reload();
             }
+        }
+
+        function logout() {
+            const keys = ['token', 'username', 'userType'];
+            keys.forEach(key => {
+                localStorage.removeItem(key);
+                sessionStorage.removeItem(key);
+            });
+            window.location.href = '/login';
         }
 
         loadDashboard();
