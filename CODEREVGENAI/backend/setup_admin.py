@@ -29,15 +29,17 @@ def setup_admin():
             cursor.execute("SELECT * FROM users WHERE username = 'admin'")
             admin = cursor.fetchone()
             
+            admin_pwd = os.getenv("ADMIN_PASSWORD", "password")
+            
             if admin:
                 print("⚠️ Admin user already exists. Resetting password...")
-                hashed_pw = get_password_hash("password")
+                hashed_pw = get_password_hash(admin_pwd)
                 cursor.execute("UPDATE users SET password_hash = %s WHERE username = 'admin'", (hashed_pw,))
                 connection.commit()
-                print("✅ Admin password reset to: password")
+                print(f"✅ Admin password reset to: {admin_pwd}")
             else:
                 print("⚙️ Creating admin user...")
-                hashed_pw = get_password_hash("password") # Default password
+                hashed_pw = get_password_hash(admin_pwd) # Default password
                 
                 # Ensure table exists (basic check)
                 cursor.execute("""
@@ -58,7 +60,7 @@ def setup_admin():
                 connection.commit()
                 print("✅ Admin user created successfully.")
                 print("   Username: admin")
-                print("   Password: password")
+                print(f"   Password: {admin_pwd}")
                 
             cursor.close()
             connection.close()

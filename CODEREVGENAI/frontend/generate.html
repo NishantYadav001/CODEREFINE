@@ -9,44 +9,24 @@
     <!-- Highlight.js for consistent styling with Index -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="/assets/styles.css">
     
     <style>
         :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
             --bg-tertiary: #334155;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --border-color: #334155;
             --accent-color: #10b981; /* Emerald 500 */
         }
 
         body.light-mode {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
             --bg-tertiary: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #334155;
-            --border-color: #cbd5e1;
             --accent-color: #059669;
         }
 
-        /* MASTER THEME OVERRIDE */
-        .bg-slate-900 { background-color: var(--bg-primary) !important; }
-        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
         .bg-slate-700 { background-color: var(--bg-tertiary) !important; }
         
-        .text-slate-50 { color: var(--text-primary) !important; }
-        .text-slate-300 { color: var(--text-secondary) !important; }
-        .text-slate-400 { color: var(--text-secondary) !important; }
-
-        .border-slate-700, .border-slate-600 { border-color: var(--border-color) !important; }
-
-        body { background-color: var(--bg-primary); color: var(--text-primary); }
         nav { background-color: var(--bg-secondary) !important; border-bottom-color: var(--border-color) !important; }
 
         /* Form Elements */
-        input, textarea, select { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
         input:focus, textarea:focus, select:focus { border-color: var(--accent-color) !important; }
 
         /* Code Output */
@@ -71,11 +51,20 @@
                 </div>
             </div>
             <div class="flex items-center gap-6">
+                <!-- Guest Nav -->
+                <div id="guest-nav" class="hidden flex items-center gap-4">
+                    <a href="/login" class="text-slate-400 hover:text-white text-sm font-bold">Login</a>
+                    <a href="/signup" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white text-sm font-bold transition-colors">Sign Up</a>
+                </div>
+                <!-- User Nav -->
+                <div id="user-nav" class="flex items-center gap-6">
                 <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
                     <i class="fas fa-moon text-yellow-400"></i>
                 </button>
+                <a href="/profile" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-user"></i> Profile</a>
                 <a href="/dashboard" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-chart-line"></i> Dashboard</a>
                 <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors ml-2"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
             </div>
         </div>
     </nav>
@@ -124,6 +113,7 @@
                                     <option value="llama-3.3-70b">Llama 3.3 70B</option>
                                     <option value="llama-3.1-405b">Llama 3.1 405B</option>
                                     <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                                    <option value="gemini-pro">Gemini Pro</option>
                                 </select>
                             </div>
                             <div class="col-span-2">
@@ -150,9 +140,9 @@
                     <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
                         <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider pl-2 flex items-center gap-2"><i class="fas fa-code"></i> Generated Output</span>
                         <div class="flex gap-2">
-                            <button onclick="refineCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Refine Code"><i class="fas fa-wand-magic-sparkles"></i></button>
-                            <button onclick="copyCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
-                            <button onclick="saveSnippet()" class="text-slate-400 hover:text-white transition-colors px-2" title="Save to Library"><i class="fas fa-save"></i></button>
+                            <button id="refineBtn" onclick="refineCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Refine Code"><i class="fas fa-wand-magic-sparkles"></i></button>
+                            <button id="copyBtn" onclick="copyCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
+                            <button id="saveSnippetBtn" onclick="saveSnippet()" class="text-slate-400 hover:text-white transition-colors px-2" title="Save to Library"><i class="fas fa-save"></i></button>
                         </div>
                     </div>
                     
@@ -173,24 +163,70 @@
     </div>
 
     <script>
+        // Security: Handle Browser Back/Forward Cache (BFCache)
+        window.addEventListener('pageshow', (event) => {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+            const isGuest = username === 'Guest';
+            
+            if (!token && !isGuest) {
+                if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                    alert("Session ended. Please log in to continue.");
+                    window.location.replace('/login');
+                    return;
+                }
+                window.location.replace('/login'); 
+            }
+        });
+
+        // Security: Popstate Listener for Back Button
+        window.addEventListener('popstate', () => {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+            const isGuest = username === 'Guest';
+            
+            if (!token && !isGuest) {
+                alert("Session Expired: Please log in to continue.");
+                window.location.replace('/login');
+            }
+        });
+
         // Load User Preferences
-        const userType = localStorage.getItem('userType') || 'developer';
-        document.getElementById('persona').value = userType;
+        document.addEventListener('DOMContentLoaded', () => {
+            const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType') || 'developer';
+            const personaSelect = document.getElementById('persona');
+            if(personaSelect) personaSelect.value = userType;
+            
+            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+            if (username === 'Guest') {
+                document.getElementById('guest-nav').classList.remove('hidden');
+                document.getElementById('user-nav').classList.add('hidden');
+                
+                // Guest Restriction Logic
+                const restrictedBtns = ['saveSnippetBtn'];
+                restrictedBtns.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        // Clone to remove existing listeners/onclick attributes
+                        const newBtn = btn.cloneNode(true);
+                        btn.parentNode.replaceChild(newBtn, btn);
+                        
+                        newBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                        newBtn.title = "Premium Feature";
+                        
+                        newBtn.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if(confirm("Please Signup to unlock this feature.")) {
+                                window.location.href = '/signup';
+                            }
+                        };
+                    }
+                });
+            }
+        });
 
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'light') document.body.classList.add('light-mode');
-        
-        if (themeToggle) {
-            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
-        }
-
+        // Make functions global for onclick handlers
         async function generateCode() {
             const prompt = document.getElementById('prompt').value;
             const language = document.getElementById('language').value;
@@ -199,7 +235,7 @@
             const btn = document.getElementById('gen-btn');
             const loader = document.getElementById('loader');
             const output = document.getElementById('code-output');
-            const user = localStorage.getItem('username') || 'guest';
+            const user = localStorage.getItem('username') || sessionStorage.getItem('username') || 'guest';
 
             if (!prompt.trim()) return alert("Please enter a prompt");
 
@@ -213,6 +249,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt, language, model, user_type: persona, username: user })
                 });
+                
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || "Generation failed");
+                }
                 
                 const data = await res.json();
                 
@@ -279,6 +320,12 @@
         }
 
         async function saveSnippet() {
+            const user = localStorage.getItem('username') || sessionStorage.getItem('username') || 'guest';
+            if (user === 'Guest' || user === 'guest') {
+                if(confirm("Sign up to save your code snippets!")) window.location.href = '/signup';
+                return;
+            }
+
             const code = document.getElementById('code-output').textContent;
             if (!code || code.trim().startsWith('# Generated')) return alert("Generate some code first!");
             
@@ -286,7 +333,6 @@
             if(!title) return;
 
             const language = document.getElementById('language').value;
-            const user = localStorage.getItem('username') || 'guest';
 
             try {
                 const res = await fetch('/api/snippets/save', {
@@ -303,8 +349,16 @@
 
         function logout() {
             localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
             window.location.href = '/login';
         }
+
+        window.generateCode = generateCode;
+        window.refineCode = refineCode;
+        window.copyCode = copyCode;
+        window.saveSnippet = saveSnippet;
+        window.logout = logout;
     </script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

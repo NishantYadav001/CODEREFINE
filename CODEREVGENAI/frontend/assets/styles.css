@@ -1,0 +1,21 @@
+:root {
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --border-color: #374151;
+}
+body.light-mode {
+    --bg-primary: #f9fafb;
+    --bg-secondary: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --border-color: #e5e7eb;
+}
+.bg-gray-900, .bg-slate-900 { background-color: var(--bg-primary) !important; }
+.bg-gray-800, .bg-slate-800, .bg-gray-850 { background-color: var(--bg-secondary) !important; }
+.text-white, .text-slate-50 { color: var(--text-primary) !important; }
+.text-gray-300, .text-gray-400, .text-gray-500, .text-slate-300, .text-slate-400, .text-slate-500 { color: var(--text-secondary) !important; }
+.border-gray-700, .border-slate-700, .border-slate-600 { border-color: var(--border-color) !important; }
+body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
+input, select, textarea { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }

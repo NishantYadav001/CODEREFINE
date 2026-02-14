@@ -6,28 +6,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/assets/styles.css">
     <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --border-color: #334155;
-        }
-        body.light-mode {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --text-primary: #0f172a;
-            --text-secondary: #334155;
-            --border-color: #cbd5e1;
-        }
-        .bg-slate-900 { background-color: var(--bg-primary) !important; }
-        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
-        .text-slate-50 { color: var(--text-primary) !important; }
-        .text-slate-400, .text-slate-500 { color: var(--text-secondary) !important; }
-        .border-slate-700 { border-color: var(--border-color) !important; }
-        
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
         button.bg-slate-800 { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; }
     </style>
 </head>
@@ -42,10 +22,13 @@
                 <button id="theme-toggle" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
                     <i class="fas fa-moon text-yellow-400"></i>
                 </button>
-                <a href="/app?userType=organisation" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
+                <a id="nav-profile" href="/profile" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
+                    <i class="fas fa-user mr-2"></i>Profile
+                </a>
+                <a href="/app" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
                     <i class="fas fa-arrow-left mr-2"></i>Back to Tool
                 </a>
-                <button onclick="logout()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-lg border border-red-900/50 text-sm transition-all">
+                <button id="nav-auth" onclick="logout()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-lg border border-red-900/50 text-sm transition-all">
                     <i class="fas fa-sign-out-alt mr-2"></i>Logout
                 </button>
             </div>
@@ -73,16 +56,24 @@
     </div>
 
     <script>
+        // Guest Access Control
+        const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+        if (!username || username === 'Guest') {
+            window.location.replace('/login');
+        }
+
         async function loadDashboard() {
-            const res = await fetch('http://localhost:8000/api/dashboard-data');
-            const data = await res.json();
+            try {
+                const res = await fetch('/api/dashboard-data');
+                const data = await res.json();
 
-            document.getElementById('total-students').innerText = data.labels.length;
-            document.getElementById('total-reviews').innerText = data.data.reduce((a, b) => a + b, 0);
+                document.getElementById('total-students').innerText = data.total_students || 0;
+                document.getElementById('total-reviews').innerText = data.total_reviews || 0;
 
-            new Chart(document.getElementById('activityChart'), {
-                type: 'bar',
-                data: {
+                const ctx = document.getElementById('activityChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
                     labels: data.labels,
                     datasets: [{
                         label: 'Number of Reviews',
@@ -100,39 +91,26 @@
                     plugins: { legend: { display: false } }
                 }
             });
+            } catch (e) {
+                console.error("Failed to load dashboard", e);
+            }
         }
         
         async function resetPlag() {
             if(confirm("Are you sure? This clears the plagiarism memory.")) {
-                await fetch('http://localhost:8000/api/reset-plagiarism', { method: 'POST' });
+                await fetch('/api/reset-plagiarism', { method: 'POST' });
                 location.reload();
             }
         }
 
         function logout() {
-            const keys = ['token', 'username', 'userType'];
-            keys.forEach(key => {
-                localStorage.removeItem(key);
-                sessionStorage.removeItem(key);
-            });
+            localStorage.clear();
+            sessionStorage.clear();
             window.location.href = '/login';
-        }
-
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'light') document.body.classList.add('light-mode');
-        
-        if (themeToggle) {
-            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
         }
 
         loadDashboard();
     </script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

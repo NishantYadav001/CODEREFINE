@@ -8,6 +8,11 @@ import time
 import hashlib
 import csv
 import platform
+import smtplib
+import threading
+import httpx
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List
@@ -36,16 +41,44 @@ try:
 except ImportError:
     BCRYPT_AVAILABLE = False
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect
+# Gemini import
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
+# Encryption import
+try:
+    from cryptography.fernet import Fernet
+    ENCRYPTION_AVAILABLE = True
+except ImportError:
+    ENCRYPTION_AVAILABLE = False
+
+# Security & Utils
+try:
+    import jwt
+    import nh3
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    SECURITY_DEPS_AVAILABLE = True
+except ImportError:
+    SECURITY_DEPS_AVAILABLE = False
+    print("⚠️ Security dependencies missing. Run: pip install pyjwt nh3 slowapi")
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from groq import Groq
 from dotenv import load_dotenv
+from starlette.requests import Request
 
 # Load environment variables
-load_dotenv()
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,12 +96,37 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Code Refine", version="2.0.0", lifespan=lifespan)
 
+# Rate Limiter Setup
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Secure Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Cache Prevention for authenticated routes
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+# Serve static assets
+assets_path = Path(__file__).parent.parent / "frontend" / "assets"
+assets_path.mkdir(parents=True, exist_ok=True)
+app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
 # Initialize Groq Client
 api_key = os.getenv("GROQ_API_KEY")
@@ -76,6 +134,13 @@ if not api_key:
     print("ERROR: GROQ_API_KEY not found in .env file!")
 
 client = Groq(api_key=api_key)
+
+# System-wide Gemini Key (Fallback)
+SYSTEM_GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+if not SYSTEM_GEMINI_KEY:
+    print("WARNING: GEMINI_API_KEY not found in .env file!")
+else:
+    print(f"✅ System Gemini Key loaded successfully")
 
 # --- Password Hashing ---
 def verify_password(plain_password, hashed_password):
@@ -96,6 +161,37 @@ def get_password_hash(password):
     hashed = bcrypt.hashpw(pwd_bytes, salt)
     return hashed.decode('utf-8')
 
+# --- Encryption Helpers ---
+if ENCRYPTION_AVAILABLE:
+    # In production, load this from os.getenv("ENCRYPTION_KEY")
+    # For this session, we generate a key. Note: Restarting server invalidates stored encrypted keys in memory.
+    _key = os.getenv("APP_ENCRYPTION_KEY") or Fernet.generate_key()
+    if not os.getenv("APP_ENCRYPTION_KEY"): print("⚠️  WARNING: Using ephemeral encryption key. Stored secrets will be lost on restart.")
+    cipher_suite = Fernet(_key)
+
+def encrypt_secret(secret: str) -> str:
+    if not ENCRYPTION_AVAILABLE or not secret: return secret
+    return cipher_suite.encrypt(secret.encode()).decode()
+
+def decrypt_secret(secret: str) -> str:
+    if not ENCRYPTION_AVAILABLE or not secret: return secret
+    try:
+        return cipher_suite.decrypt(secret.encode()).decode()
+    except:
+        return secret
+
+# --- JWT Configuration ---
+SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
 # --- Global Stores ---
 CODE_DATABASE = [] 
 STUDENT_STATS = {}
@@ -110,14 +206,21 @@ WEBHOOKS = {}  # Store webhook configurations
 API_RATE_LIMITS = {}  # Track API usage per user
 NEWSLETTER_SUBS = [] # Store newsletter subscriptions
 MAINTENANCE_MODE = False # Global maintenance flag
+GUEST_USAGE = {} # Track guest usage by IP
+GUEST_DAILY_LIMIT = 5 # Max generations per day for guests
 AVAILABLE_MODELS = {  # Available AI models
     "llama-3.3-70b": {"name": "Llama 3.3 70B", "provider": "Groq", "speed": "Fast", "quality": "Excellent"},
     "llama-3.1-405b": {"name": "Llama 3.1 405B", "provider": "Groq", "speed": "Slower", "quality": "Best"},
     "mixtral-8x7b-32768": {"name": "Mixtral 8x7B", "provider": "Groq", "speed": "Very Fast", "quality": "Good"},
+    "gemini-pro": {"name": "Gemini Pro", "provider": "Google", "speed": "Fast", "quality": "Excellent"},
 }
 # In-memory User Database (Replaces hardcoded dict in login)
+admin_pwd = os.getenv("ADMIN_PASSWORD", "password")
+if admin_pwd == "password":
+    print("⚠️  WARNING: Using default admin password. Set ADMIN_PASSWORD in .env for security.")
+
 USER_DB = {
-    "admin": {"password": "password", "email": "admin@coderefine.ai"}
+    "admin": {"password": admin_pwd, "email": "admin@coderefine.ai"}
 }
 
 # Ensure reports directory exists
@@ -197,33 +300,61 @@ def check_maintenance(user: str):
     if MAINTENANCE_MODE and not is_user_admin(user):
         raise HTTPException(status_code=503, detail="System is under maintenance. Please try again later.")
 
-def check_rate_limit(user: str):
-    """Enforce daily rate limits"""
-    check_maintenance(user)
-    if not user:
-        user = "anonymous"
+def check_guest_limit(request: Request, username: str):
+    """Enforce daily limit for guest users based on IP"""
+    if username.lower() == "guest":
+        ip = request.client.host
+        now = time.time()
+        # Get usage record or initialize (reset after 24h)
+        usage = GUEST_USAGE.get(ip, {'count': 0, 'reset_time': now + 86400})
         
-    limit = 50 if user in ["guest", "anonymous", "Guest"] else 1000
-    
-    if user not in API_RATE_LIMITS:
-        API_RATE_LIMITS[user] = {
-            "requests_today": 0,
-            "last_reset": datetime.now().isoformat()
-        }
-    
-    # Reset if next day
-    last_reset = datetime.fromisoformat(API_RATE_LIMITS[user]["last_reset"])
-    if datetime.now() - last_reset > timedelta(days=1):
-        API_RATE_LIMITS[user]["requests_today"] = 0
-        API_RATE_LIMITS[user]["last_reset"] = datetime.now().isoformat()
+        if now > usage['reset_time']:
+            usage = {'count': 0, 'reset_time': now + 86400}
         
-    if API_RATE_LIMITS[user]["requests_today"] >= limit:
-        raise HTTPException(status_code=429, detail=f"Daily rate limit exceeded for {user}")
+        if usage['count'] >= GUEST_DAILY_LIMIT:
+            raise HTTPException(status_code=403, detail=f"Guest limit reached ({GUEST_DAILY_LIMIT}/day). Please sign up for unlimited access.")
         
-    API_RATE_LIMITS[user]["requests_today"] += 1
+        usage['count'] += 1
+        GUEST_USAGE[ip] = usage
 
-def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-versatile"):
-    """Unified helper to call Groq"""
+def sanitize_html(content: str) -> str:
+    """Sanitize HTML content using nh3"""
+    if not SECURITY_DEPS_AVAILABLE: return content
+    allowed_tags = {'h1', 'h2', 'h3', 'h4', 'p', 'pre', 'code', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'b', 'i', 'u', 'span', 'div'}
+    return nh3.clean(content, tags=allowed_tags)
+
+# Lock for thread-safe Gemini configuration
+gemini_lock = threading.Lock()
+
+def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-versatile", gemini_key=None):
+    """Unified helper to call Groq or Gemini"""
+    
+    if "gemini" in model.lower():
+        if not GEMINI_AVAILABLE:
+            return "Error: google-generativeai library not installed. Please install it to use Gemini."
+        
+        # Prioritize user key, then system key
+        final_key = gemini_key or SYSTEM_GEMINI_KEY
+        
+        if not final_key:
+            return "Error: Gemini API Key not found. Please add it in Settings."
+            
+        try:
+            with gemini_lock:
+                genai.configure(api_key=final_key)
+                gemini_model = genai.GenerativeModel("gemini-pro")
+                response = gemini_model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=temp,
+                        max_output_tokens=max_tokens
+                    )
+                )
+            return response.text
+        except Exception as e:
+            print(f"Gemini Error: {e}")
+            return f"Error calling Gemini: {str(e)}"
+
     try:
         completion = client.chat.completions.create(
             model=model,
@@ -237,10 +368,10 @@ def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-vers
         print(f"AI Error: {e}")
         return "Error: Could not get a response from AI."
 
-def analyze_complexity(code):
+def analyze_complexity(code, model="llama-3.3-70b-versatile", gemini_key=None):
     """AI-powered Big-O analysis"""
     prompt = f"Analyze the time complexity of this code. Return ONLY the Big-O notation (e.g., O(n)).\nCode:\n{code}"
-    res = get_ai_response(prompt, temp=0.1, max_tokens=20)
+    res = get_ai_response(prompt, temp=0.1, max_tokens=20, model=model, gemini_key=gemini_key)
     match = re.search(r"O\(.*?\)", res)
     return match.group(0) if match else "O(n)"
 
@@ -303,17 +434,31 @@ Code to review:"""
     persona = personas.get(user_type, personas['developer'])
     return f"{persona}\n{code}"
 
+def inject_policies(prompt, user_type):
+    """Inject company policies for enterprise users"""
+    if user_type in ["enterprise", "organisation"] and COMPANY_POLICIES:
+        return f"STRICTLY ADHERE TO THE FOLLOWING COMPANY POLICIES:\n{COMPANY_POLICIES}\n\n{prompt}"
+    return prompt
+
 
 # --- API Endpoints ---
 
 @app.post("/api/generate")
-async def generate_code(payload: dict = Body(...)):
+@limiter.limit("10/minute")
+async def generate_code(request: Request, payload: dict = Body(...)):
     u_prompt = payload.get("prompt", "")
     lang = payload.get("language", "python")
     u_type = payload.get("user_type") or payload.get("role") or "developer"
     model_key = payload.get("model", "llama-3.3-70b")
     username = payload.get("username", "guest")
-    check_rate_limit(username)
+    check_maintenance(username)
+    check_guest_limit(request, username)
+    
+    # Get Gemini Key if needed
+    gemini_key = None
+    if "gemini" in model_key:
+        user_settings = USER_SETTINGS.get(username, {})
+        gemini_key = decrypt_secret(user_settings.get("gemini_key"))
 
     instr = {
         "student": "AI Tutor: simple, commented code.",
@@ -322,17 +467,22 @@ async def generate_code(payload: dict = Body(...)):
     }
 
     # Map frontend model keys to Groq model IDs
-    model_id = "llama-3.3-70b-versatile" if "3.3" in model_key else "llama-3.1-405b-reasoning" if "405" in model_key else "mixtral-8x7b-32768"
+    if "gemini" in model_key:
+        model_id = "gemini-pro"
+    else:
+        model_id = "llama-3.3-70b-versatile" if "3.3" in model_key else "llama-3.1-405b-reasoning" if "405" in model_key else "mixtral-8x7b-32768"
 
     full_prompt = f"{instr.get(u_type, instr['developer'])}\nGenerate {lang} for: {u_prompt}\nReturn ONLY code."
-    gen_text = get_ai_response(full_prompt, temp=0.6, model=model_id)
+    full_prompt = inject_policies(full_prompt, u_type)
+    gen_text = get_ai_response(full_prompt, temp=0.6, model=model_id, gemini_key=gemini_key)
     
     match = re.search(r"```(?:\w+)?\n([\s\S]+?)\n```", gen_text)
     return {"generated_code": match.group(1) if match else gen_text.strip()}
 
 @app.post("/api/review")
 @app.post("/api/rewrite")
-async def process_code(payload: dict = Body(...)):
+@limiter.limit("10/minute")
+async def process_code(request: Request, payload: dict = Body(...)):
     """Comprehensive Review logic with 'Payload Normalization'"""
     # Fix: Get code from 'code' or 'text'
     code = payload.get("code") or payload.get("text") or ""
@@ -340,7 +490,17 @@ async def process_code(payload: dict = Body(...)):
     u_type = payload.get("user_type") or payload.get("role") or "developer"
     # Fix: Normalize Username (Fixes the 500 error)
     u_name = payload.get("student_name") or payload.get("username") or payload.get("email") or "Anonymous"
-    check_rate_limit(u_name)
+    check_maintenance(u_name)
+    check_guest_limit(request, u_name)
+    
+    model_key = payload.get("model", "llama-3.3-70b")
+    gemini_key = None
+    if "gemini" in model_key:
+        user_settings = USER_SETTINGS.get(u_name, {})
+        gemini_key = decrypt_secret(user_settings.get("gemini_key"))
+        model_id = "gemini-pro"
+    else:
+        model_id = "llama-3.3-70b-versatile" if "3.3" in model_key else "llama-3.1-405b-reasoning" if "405" in model_key else "mixtral-8x7b-32768"
 
     if u_type == "student":
         STUDENT_STATS[u_name] = STUDENT_STATS.get(u_name, 0) + 1
@@ -349,7 +509,9 @@ async def process_code(payload: dict = Body(...)):
     
     # Create balanced review prompt
     review_prompt = create_balanced_review_prompt(code, u_type)
-    review_text = get_ai_response(review_prompt)
+    review_prompt = inject_policies(review_prompt, u_type)
+    review_text = get_ai_response(review_prompt, model=model_id, gemini_key=gemini_key)
+    review_text = sanitize_html(review_text)
 
     
     code_match = re.search(r"```(?:\w+)?\n([\s\S]+?)\n```", review_text)
@@ -358,9 +520,9 @@ async def process_code(payload: dict = Body(...)):
     return {
         "review": review_text,
         "rewritten_code": rewritten,
-        "complexity": analyze_complexity(code),
-        "time_complexity_original": analyze_complexity(code),
-        "time_complexity_rewritten": analyze_complexity(rewritten) if rewritten else analyze_complexity(code),
+        "complexity": analyze_complexity(code, model=model_id, gemini_key=gemini_key),
+        "time_complexity_original": analyze_complexity(code, model=model_id, gemini_key=gemini_key),
+        "time_complexity_rewritten": analyze_complexity(rewritten, model=model_id, gemini_key=gemini_key) if rewritten else "N/A",
         "plagiarism": plag,
         "student_stats": STUDENT_STATS.get(u_name, 0),
         "stats": {
@@ -411,7 +573,7 @@ async def login(payload: dict = Body(...)):
             if verify_password(password, user_record["password"]):
                 user_data = {"username": found_key, "email": user_record["email"], "role": "admin" if found_key == "admin" else "user"}
             # Emergency fallback for admin if hashing fails or is mismatched in memory
-            elif found_key == "admin" and password == "password":
+            elif found_key == "admin" and password == admin_pwd:
                 print("⚠️ Emergency admin login used")
                 user_data = {"username": "admin", "email": "admin@coderefine.ai", "role": "admin"}
 
@@ -424,10 +586,10 @@ async def login(payload: dict = Body(...)):
              raise HTTPException(status_code=503, detail="System is under maintenance. Admin access only.")
     
     username = user_data["username"]
-    token = base64.b64encode(f"{username}:{password}".encode()).decode()
-    ACTIVE_SESSIONS[token] = {"username": username, "role": user_data.get("role", "user"), "email": user_data.get("email")}
+    # Generate JWT Token
+    access_token = create_access_token(data={"sub": username, "role": user_data.get("role", "user")})
     
-    return {"token": token, "username": username, "message": "Login successful"}
+    return {"token": access_token, "username": username, "role": user_data.get("role", "user"), "message": "Login successful"}
 
 @app.post("/api/signup")
 async def signup(payload: dict = Body(...)):
@@ -446,16 +608,27 @@ async def signup(payload: dict = Body(...)):
     if conn:
         try:
             cursor = conn.cursor()
+            # Check if email already exists
+            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="Email already registered")
+
             cursor.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)", (username, email, hashed_password))
             conn.commit()
         except Error as e:
-            raise HTTPException(status_code=400, detail="Username already exists or DB error")
+            raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
         finally:
             cursor.close()
             conn.close()
     else:
         if username in USER_DB:
             raise HTTPException(status_code=400, detail="Username already exists")
+
+        # Check if email exists in in-memory DB
+        for user_data in USER_DB.values():
+            if user_data.get("email") == email:
+                raise HTTPException(status_code=400, detail="Email already registered")
+
         USER_DB[username] = {"password": hashed_password, "email": email}
     
     return {"message": "User created successfully"}
@@ -473,16 +646,37 @@ async def update_profile(payload: dict = Body(...)):
     """Update user profile (email/password)"""
     username = payload.get("username")
     email = payload.get("email")
-    password = payload.get("password")
+    new_password = payload.get("new_password")
+    current_password = payload.get("current_password")
+    
+    if not username or username.lower() == "guest":
+        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
     
     conn = get_db_connection()
     if conn:
         try:
-            cursor = conn.cursor()
+            cursor = conn.cursor(dictionary=True)
+            
+            # Verify user exists and get current data
+            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+            user_record = cursor.fetchone()
+            if not user_record:
+                raise HTTPException(status_code=404, detail="User not found")
+
             if email:
+                # Check if email is taken by another user
+                cursor.execute("SELECT id FROM users WHERE email = %s AND username != %s", (email, username))
+                if cursor.fetchone():
+                    raise HTTPException(status_code=400, detail="Email already in use by another account")
                 cursor.execute("UPDATE users SET email = %s WHERE username = %s", (email, username))
-            if password:
-                cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (get_password_hash(password), username))
+            
+            if new_password:
+                if not current_password:
+                    raise HTTPException(status_code=400, detail="Current password is required to change password")
+                if not verify_password(current_password, user_record["password_hash"]):
+                    raise HTTPException(status_code=400, detail="Incorrect current password")
+                cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (get_password_hash(new_password), username))
+                
             conn.commit()
         finally:
             cursor.close()
@@ -490,10 +684,22 @@ async def update_profile(payload: dict = Body(...)):
     else:
         if username not in USER_DB:
             raise HTTPException(status_code=404, detail="User not found")
+        
+        user_record = USER_DB[username]
+        
         if email:
+            # Check if email is taken by another user (In-Memory)
+            for u, data in USER_DB.items():
+                if u != username and data.get("email") == email:
+                    raise HTTPException(status_code=400, detail="Email already in use by another account")
             USER_DB[username]["email"] = email
-        if password:
-            USER_DB[username]["password"] = get_password_hash(password)
+            
+        if new_password:
+            if not current_password:
+                raise HTTPException(status_code=400, detail="Current password is required to change password")
+            if not verify_password(current_password, user_record["password"]):
+                raise HTTPException(status_code=400, detail="Incorrect current password")
+            USER_DB[username]["password"] = get_password_hash(new_password)
         
     return {"message": "Profile updated successfully"}
 
@@ -543,6 +749,7 @@ async def health():
         "status": "healthy",
         "database": "connected" if get_db_connection() else "in-memory fallback",
         "ocr_available": OCR_AVAILABLE,
+        "gemini_ready": GEMINI_AVAILABLE and bool(SYSTEM_GEMINI_KEY),
         "model": "llama-3.3-70b-versatile",
         "version": "2.0.0"
     }
@@ -803,13 +1010,14 @@ async def get_templates(language: str):
 
 # 4. Unit Test Generation
 @app.post("/api/generate-tests")
-async def generate_tests(payload: dict = Body(...)):
+@limiter.limit("20/minute")
+async def generate_tests(request: Request, payload: dict = Body(...)):
     """Generate unit tests for code"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
     user = payload.get("user", "guest")
     
-    check_rate_limit(user)
+    check_maintenance(user)
 
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -824,12 +1032,13 @@ async def generate_tests(payload: dict = Body(...)):
 
 # 5. Documentation Generator
 @app.post("/api/generate-docs")
-async def generate_docs(payload: dict = Body(...)):
+@limiter.limit("20/minute")
+async def generate_docs(request: Request, payload: dict = Body(...)):
     """Generate documentation for code"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
     user = payload.get("user", "guest")
-    check_rate_limit(user)
+    check_maintenance(user)
     
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -838,18 +1047,20 @@ async def generate_docs(payload: dict = Body(...)):
     
     try:
         docs = get_ai_response(doc_prompt, temp=0.3, max_tokens=1500)
+        docs = sanitize_html(docs)
         return {"documentation": docs, "language": language}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Documentation generation failed: {str(e)}")
 
 # 6. Code Security Scanner
 @app.post("/api/security-scan")
-async def security_scan(payload: dict = Body(...)):
+@limiter.limit("10/minute")
+async def security_scan(request: Request, payload: dict = Body(...)):
     """Scan code for security vulnerabilities"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
     user = payload.get("user", "guest")
-    check_rate_limit(user)
+    check_maintenance(user)
     
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -858,18 +1069,20 @@ async def security_scan(payload: dict = Body(...)):
     
     try:
         analysis = get_ai_response(security_prompt, temp=0.2, max_tokens=1000)
+        analysis = sanitize_html(analysis)
         return {"security_analysis": analysis, "language": language}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Security scan failed: {str(e)}")
 
 # 7. Refactoring Suggestions
 @app.post("/api/refactor-suggestions")
-async def refactor_suggestions(payload: dict = Body(...)):
+@limiter.limit("15/minute")
+async def refactor_suggestions(request: Request, payload: dict = Body(...)):
     """Get refactoring suggestions for code"""
     code = payload.get("code", "")
     language = payload.get("language", "python")
     user = payload.get("user", "guest")
-    check_rate_limit(user)
+    check_maintenance(user)
     
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
@@ -878,6 +1091,7 @@ async def refactor_suggestions(payload: dict = Body(...)):
     
     try:
         suggestions = get_ai_response(refactor_prompt, temp=0.4, max_tokens=1000)
+        suggestions = sanitize_html(suggestions)
         return {"refactoring_suggestions": suggestions, "language": language}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Refactoring suggestions failed: {str(e)}")
@@ -891,6 +1105,9 @@ async def save_snippet(payload: dict = Body(...)):
     code = payload.get("code", "")
     language = payload.get("language", "python")
     
+    if user.lower() == "guest":
+        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
+
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
     
@@ -911,6 +1128,8 @@ async def save_snippet(payload: dict = Body(...)):
 @app.get("/api/snippets/{user}")
 async def get_snippets(user: str):
     """Get user's saved snippets"""
+    if user.lower() == "guest":
+        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
     snippets = CODE_SNIPPETS.get(user, [])
     return {"snippets": snippets, "total": len(snippets)}
 
@@ -931,7 +1150,7 @@ async def save_to_history(payload: dict = Body(...)):
     action = payload.get("action", "review")
     
     if user.lower() == "guest":
-        return {"message": "History not saved for guest"}
+        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
 
     if user not in CODE_HISTORY:
         CODE_HISTORY[user] = []
@@ -949,6 +1168,8 @@ async def save_to_history(payload: dict = Body(...)):
 @app.get("/api/history/{user}")
 async def get_history(user: str):
     """Get user's code history"""
+    if user.lower() == "guest":
+        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
     history = CODE_HISTORY.get(user, [])
     return {"history": history, "total_versions": len(history)}
 
@@ -1315,10 +1536,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # 10. REPORT MANAGEMENT
 @app.get("/api/reports")
-async def list_reports():
-    """List all saved reports"""
+async def list_reports(user: str = "default"):
+    """List saved reports for a specific user"""
     files = []
-    for f in REPORTS_DIR.glob("*.*"):
+    # Filter files that contain the username
+    for f in REPORTS_DIR.glob(f"report_{user}_*.*"):
         files.append({
             "filename": f.name,
             "created": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
@@ -1351,9 +1573,10 @@ async def save_report_to_disk(payload: dict = Body(...)):
     rewritten_code = payload.get("rewritten_code", "")
     review = payload.get("review", "")
     stats = payload.get("stats", {})
-    
+    user = payload.get("user", "default")
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"report_{timestamp}.{format_type}"
+    filename = f"report_{user}_{timestamp}.{format_type}"
     file_path = REPORTS_DIR / filename
     
     try:
@@ -1389,12 +1612,64 @@ async def save_report_to_disk(payload: dict = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save report: {str(e)}")
 
+# 10.5 GITHUB INTEGRATION
+@app.post("/api/github/commit")
+async def commit_to_github(payload: dict = Body(...)):
+    """Commit code to GitHub"""
+    user = payload.get("user", "default")
+    repo = payload.get("repo")
+    path = payload.get("path")
+    message = payload.get("message", "Update via Code Refine")
+    content = payload.get("content")
+    branch = payload.get("branch", "main")
+    token = payload.get("token")
+
+    if user.lower() == "guest":
+        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
+
+    if not token:
+        settings = USER_SETTINGS.get(user, {})
+        token = decrypt_secret(settings.get("github_token"))
+
+    if not token:
+        raise HTTPException(status_code=400, detail="GitHub Token required. Set it in Settings or provide it.")
+    
+    if not repo or not path or not content:
+        raise HTTPException(status_code=400, detail="Repository, path, and content are required")
+
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+    
+    async with httpx.AsyncClient() as client:
+        # 1. Check if file exists to get SHA (for update)
+        url = f"https://api.github.com/repos/{repo}/contents/{path}"
+        get_res = await client.get(url, headers=headers, params={"ref": branch})
+        
+        data = {
+            "message": message,
+            "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+            "branch": branch
+        }
+        if get_res.status_code == 200:
+            data["sha"] = get_res.json().get("sha")
+            
+        put_res = await client.put(url, headers=headers, json=data)
+        if put_res.status_code not in [200, 201]:
+            raise HTTPException(status_code=put_res.status_code, detail=f"GitHub Error: {put_res.text}")
+            
+        return {"message": "File committed successfully", "url": put_res.json().get("html_url")}
+
 # 11. USER SETTINGS
 @app.post("/api/settings/update")
 async def update_settings(payload: dict = Body(...)):
     """Update user settings"""
-    user = payload.get("user", "default")
+    user = payload.get("user") or payload.get("username") or "default"
     settings = payload.get("settings", {})
+    
+    # Encrypt sensitive keys before storage
+    if "gemini_key" in settings and settings["gemini_key"]:
+        settings["gemini_key"] = encrypt_secret(settings["gemini_key"])
+    if "github_token" in settings and settings["github_token"]:
+        settings["github_token"] = encrypt_secret(settings["github_token"])
     
     USER_SETTINGS[user] = settings
     return {"message": "Settings updated"}
@@ -1408,8 +1683,34 @@ async def get_settings(user: str):
         "font_size": 14,
         "tab_size": 4,
         "notifications": False
-    })
+    }).copy() # Copy to avoid modifying storage during decryption
+    
+    # Decrypt for display
+    if "gemini_key" in settings:
+        settings["gemini_key"] = decrypt_secret(settings["gemini_key"])
+    if "github_token" in settings:
+        settings["github_token"] = decrypt_secret(settings["github_token"])
+        
     return {"settings": settings}
+
+# 11.5 TEST CONNECTION
+@app.post("/api/test-gemini")
+async def test_gemini_connection(payload: dict = Body(...)):
+    """Test Gemini API Key validity"""
+    api_key = payload.get("api_key")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key required")
+    
+    if not GEMINI_AVAILABLE:
+         raise HTTPException(status_code=400, detail="Gemini library not installed")
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content("Hello, just checking connection.")
+        return {"message": "Connection successful!", "response": response.text[:50]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Connection failed: {str(e)}")
 
 # 12. HELP & DOCUMENTATION
 FAQ_DATA = {
@@ -1444,12 +1745,65 @@ async def get_faq():
     return FAQ_DATA
 
 # 13. NEWSLETTER SUBSCRIPTION
+def send_welcome_email_background(email: str):
+    """Send welcome email to new subscribers"""
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = os.getenv("SMTP_PORT")
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    sender_email = os.getenv("SMTP_SENDER_EMAIL", smtp_user)
+
+    if smtp_server and smtp_port and smtp_user and smtp_password:
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = email
+            msg['Subject'] = "Welcome to Code Refine!"
+            
+            body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                    <h2 style="color: #2563eb;">Welcome to Code Refine! 🚀</h2>
+                    <p>Hi there,</p>
+                    <p>Thank you for subscribing to our newsletter. We are excited to have you on board!</p>
+                    <p>You will now receive updates about the latest features, coding tips, and security insights directly to your inbox.</p>
+                    <br>
+                    <p>Happy Coding,</p>
+                    <p><strong>The Code Refine Team</strong></p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="font-size: 12px; color: #888;">If you did not subscribe to this newsletter, please ignore this email.</p>
+                </div>
+            </body>
+            </html>
+            """
+            msg.attach(MIMEText(body, 'html'))
+            
+            if int(smtp_port) == 465:
+                server = smtplib.SMTP_SSL(smtp_server, int(smtp_port))
+            else:
+                server = smtplib.SMTP(smtp_server, int(smtp_port))
+                server.starttls()
+            
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+            server.quit()
+            print(f"✅ Welcome email sent to {email}")
+        except Exception as e:
+            print(f"❌ Failed to send welcome email: {e}")
+    else:
+        print(f"📧 [SIMULATION] Welcome email to {email} (SMTP not configured)")
+
 @app.post("/api/newsletter/subscribe")
-async def subscribe_newsletter(payload: dict = Body(...)):
+async def subscribe_newsletter(background_tasks: BackgroundTasks, payload: dict = Body(...)):
     """Subscribe to newsletter"""
     email = payload.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
+    
+    # Send welcome email in background
+    background_tasks.add_task(send_welcome_email_background, email)
+    
     NEWSLETTER_SUBS.append({"email": email, "date": datetime.now().isoformat()})
     return {"message": "Subscribed successfully"}
 
@@ -1478,6 +1832,28 @@ async def manifest():
     if path.exists():
         return FileResponse(path, media_type="application/json")
     raise HTTPException(status_code=404, detail="Manifest not found")
+
+# 14.5 SERVE CORE JS FILES (Root Level)
+@app.get("/main.js", include_in_schema=False)
+async def serve_main_js():
+    path = Path(__file__).parent.parent / "frontend" / "main.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="main.js not found")
+
+@app.get("/utils.js", include_in_schema=False)
+async def serve_utils_js():
+    path = Path(__file__).parent.parent / "frontend" / "utils.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="utils.js not found")
+
+@app.get("/theme.js", include_in_schema=False)
+async def serve_theme_js():
+    path = Path(__file__).parent.parent / "frontend" / "theme.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="theme.js not found")
 
 # 15. SYSTEM STATUS
 @app.get("/api/system/status")
@@ -1595,9 +1971,55 @@ async def set_maintenance_status(payload: dict = Body(...)):
 
 # --- Password Reset (Simulated) ---
 
+def send_email_background(email: str, reset_link: str):
+    """Send email in background to prevent blocking the API"""
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = os.getenv("SMTP_PORT")
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    sender_email = os.getenv("SMTP_SENDER_EMAIL", smtp_user)
+
+    if smtp_server and smtp_port and smtp_user and smtp_password:
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = email
+            msg['Subject'] = "Password Reset Request - Code Refine"
+            
+            body = f"""
+            <html>
+            <body>
+                <h2>Password Reset Request</h2>
+                <p>Hello,</p>
+                <p>We received a request to reset your password for your Code Refine account.</p>
+                <p>Click the link below to reset it:</p>
+                <p><a href="{reset_link}" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+                <p>Or copy this link: {reset_link}</p>
+                <p>If you did not request this, please ignore this email.</p>
+            </body>
+            </html>
+            """
+            msg.attach(MIMEText(body, 'html'))
+            
+            if int(smtp_port) == 465:
+                server = smtplib.SMTP_SSL(smtp_server, int(smtp_port))
+            else:
+                server = smtplib.SMTP(smtp_server, int(smtp_port))
+                server.starttls()
+            
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+            server.quit()
+            print(f"✅ Email sent to {email} via SMTP")
+        except Exception as e:
+            print(f"❌ Failed to send email: {e}")
+            print(f"📧 [FALLBACK SIMULATION] Reset Link: {reset_link}")
+    else:
+        print(f"📧 [SIMULATION] SMTP not configured. Link: {reset_link}")
+
 @app.post("/api/forgot-password")
-async def forgot_password(payload: dict = Body(...)):
-    """Initiate password reset flow (Simulated Email)"""
+async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+    """Initiate password reset flow (Real Email via Background Task)"""
     email = payload.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
@@ -1628,13 +2050,11 @@ async def forgot_password(payload: dict = Body(...)):
                 break
     
     if user_found:
-        # Simulate sending email
         reset_token = hashlib.sha256(f"{email}{datetime.now()}".encode()).hexdigest()[:16]
-        print("="*40)
-        print(f"📧 [SIMULATED EMAIL] To: {email}")
-        print(f"Subject: Password Reset Request")
-        print(f"Body: Click here to reset your password: http://localhost:8000/reset-password?token={reset_token}")
-        print("="*40)
+        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
+        
+        # Send email in background
+        background_tasks.add_task(send_email_background, email, reset_link)
         
     return {"message": "If an account exists for this email, a reset link has been sent."}
 

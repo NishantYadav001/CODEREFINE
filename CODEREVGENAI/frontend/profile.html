@@ -6,29 +6,7 @@
     <title>User Profile - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #111827;
-            --bg-secondary: #1f2937;
-            --text-primary: #f9fafb;
-            --text-secondary: #9ca3af;
-            --border-color: #374151;
-        }
-        body.light-mode {
-            --bg-primary: #f9fafb;
-            --bg-secondary: #ffffff;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --border-color: #e5e7eb;
-        }
-        .bg-gray-900 { background-color: var(--bg-primary) !important; }
-        .bg-gray-800 { background-color: var(--bg-secondary) !important; }
-        .text-white { color: var(--text-primary) !important; }
-        .text-gray-300, .text-gray-400 { color: var(--text-secondary) !important; }
-        .border-gray-700 { border-color: var(--border-color) !important; }
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
-        input { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
-    </style>
+    <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body class="bg-gray-900 text-white font-sans">
 
@@ -53,8 +31,15 @@
         <!-- Sidebar / User Info -->
         <div class="col-span-1 bg-gray-800 rounded-lg p-6 border border-gray-700 h-fit">
             <div class="text-center mb-6">
-                <div class="w-24 h-24 bg-blue-600 rounded-full mx-auto flex items-center justify-center text-3xl font-bold mb-4">
-                    <span id="avatar-initial">U</span>
+                <div class="relative w-24 h-24 mx-auto mb-4 group cursor-pointer" onclick="document.getElementById('avatar-upload').click()">
+                    <div id="avatar-container" class="w-full h-full bg-blue-600 rounded-full flex items-center justify-center text-3xl font-bold overflow-hidden border-2 border-gray-700 group-hover:border-blue-500 transition-colors">
+                        <span id="avatar-initial">U</span>
+                        <img id="avatar-img" src="" class="w-full h-full object-cover hidden">
+                    </div>
+                    <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-camera text-white"></i>
+                    </div>
+                    <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
                 </div>
                 <h2 class="text-2xl font-bold" id="profile-username">Loading...</h2>
                 <p class="text-gray-400" id="profile-email">loading@example.com</p>
@@ -88,8 +73,19 @@
                 </div>
 
                 <div>
+                    <label class="block text-gray-400 mb-2">Current Password <span class="text-xs text-gray-500">(Required to change password)</span></label>
+                    <input type="password" id="input-current-password" placeholder="Enter current password" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none mb-4">
+                </div>
+
+                <div>
                     <label class="block text-gray-400 mb-2">New Password</label>
-                    <input type="password" id="input-password" placeholder="Leave blank to keep current" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                    <input type="password" id="input-new-password" placeholder="Leave blank to keep current" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                    <div class="mt-2 transition-all duration-300 opacity-0" id="strength-container">
+                        <div class="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
+                            <div id="password-strength-bar" class="h-full bg-red-500 w-0 transition-all duration-300"></div>
+                        </div>
+                        <p id="password-strength-text" class="text-xs text-gray-500 mt-1 text-right">Strength: None</p>
+                    </div>
                 </div>
 
                 <div class="pt-4">
@@ -100,7 +96,7 @@
                 <div class="pt-8 mt-8 border-t border-gray-700">
                     <h3 class="text-lg font-bold text-red-400 mb-2">Danger Zone</h3>
                     <p class="text-gray-400 text-sm mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-                    <button type="button" onclick="deleteAccount()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900 px-4 py-2 rounded transition-colors">
+                    <button type="button" onclick="openDeleteModal()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900 px-4 py-2 rounded transition-colors">
                         Delete Account
                     </button>
                 </div>
@@ -108,13 +104,36 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 p-6 rounded-2xl border border-red-900/50 shadow-2xl w-full max-w-md relative mx-4">
+            <h3 class="text-xl font-bold text-white mb-2"><i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>Delete Account</h3>
+            <p class="text-gray-300 mb-6">Are you sure you want to delete your account? This action is <strong>irreversible</strong> and will remove all your data, snippets, and history.</p>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeDeleteModal()" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors">Cancel</button>
+                <button onclick="confirmDelete()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const username = localStorage.getItem('username') || 'Guest';
-        
+        const username = localStorage.getItem('username') || 
+        // Guest Access Control
+        if (username === 'Guest') {
+            window.location.replace('/signup');
+        }
+
         // Load Profile Data
         async function loadProfile() {
             document.getElementById('profile-username').innerText = username;
             document.getElementById('avatar-initial').innerText = username.charAt(0).toUpperCase();
+            
+            const savedAvatar = localStorage.getItem(`avatar_${username}`);
+            if (savedAvatar) {
+                document.getElementById('avatar-img').src = savedAvatar;
+                document.getElementById('avatar-img').classList.remove('hidden');
+                document.getElementById('avatar-initial').classList.add('hidden');
+            }
 
             // Fetch Analytics
             const res = await fetch(`/api/analytics/${username}`);
@@ -128,36 +147,93 @@
             document.getElementById('stat-lang').innerText = topLang;
 
             // Fetch User Details (Mocked for now as we don't have a GET /user endpoint, using stored email if available or default)
-            document.getElementById('profile-email').innerText = localStorage.getItem('email') || `${username.toLowerCase()}@coderefine.ai`;
-            document.getElementById('input-email').value = localStorage.getItem('email') || `${username.toLowerCase()}@coderefine.ai`;
+            const email = localStorage.getItem('email') || sessionStorage.getItem('email') || `${username.toLowerCase(le mu
         }
+
+        function handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File size must be less than 2MB");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const result = e.target.result;
+                document.getElementById('avatar-img').src = result;
+                document.getElementById('avatar-img').classList.remove('hidden');
+                document.getElementById('avatar-initial').classList.add('hidden');
+                localStorage.setItem(`avatar_${username}`, result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById('input-new-password').addEventListener('input', function(e) {
+            const password = e.target.value;
+            const container = document.getElementById('strength-container');
+            const bar = document.getElementById('password-strength-bar');
+            const text = document.getElementById('password-strength-text');
+
+            if (!password) {
+                container.classList.add('opacity-0');
+                return;
+            }
+            container.classList.remove('opacity-0');
+
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.match(/[A-Z]/)) strength++;
+            if (password.match(/[0-9]/)) strength++;
+            if (password.match(/[^A-Za-z0-9]/)) strength++;
+
+            const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
+            const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+            const widths = ['20%', '40%', '60%', '80%', '100%'];
+
+            bar.className = `h-full transition-all duration-300 ${colors[strength]}`;
+            bar.style.width = widths[strength];
+            text.innerText = `Strength: ${labels[strength]}`;
+            text.className = `text-xs mt-1 text-right font-bold ${colors[strength].replace('bg-', 'text-')}`;
+        });
 
         document.getElementById('update-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('input-email').value;
-            const password = document.getElementById('input-password').value;
+            const newPassword = document.getElementById('input-new-password').value;
+            const currentPassword = document.getElementById('input-current-password').value;
             const msg = document.getElementById('msg');
 
             const res = await fetch('/api/profile/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password: password || undefined })
+                body: JSON.stringify({ username, email, new_password: newPassword || undefined, current_password: currentPassword || undefined })
             });
 
             if (res.ok) {
-                localStorage.setItem('email', email);
-                msg.innerText = "Profile updated successfully!";
-                msg.className = "text-sm mt-2 text-green-400";
+                if (localStorage.getItem('token')) localStorage.setItem('email', email);
+                else sessionStorage.setItem('email', email);
+                msg.innereen-400";
                 document.getElementById('profile-email').innerText = email;
+                document.getElementById('input-current-password').value = '';
+                document.getElementById('input-new-password').value = '';
             } else {
-                msg.innerText = "Update failed.";
+                const data = await res.json();
+                msg.innerText = data.detail || "Update failed.";
                 msg.className = "text-sm mt-2 text-red-400";
             }
         });
 
-        async function deleteAccount() {
-            if(!confirm("Are you sure you want to delete your account? This action cannot be undone.")) return;
-            
+        function openDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        async function confirmDelete() {
             const res = await fetch(`/api/profile/${username}`, { method: 'DELETE' });
             if(res.ok) {
                 alert("Account deleted.");
@@ -166,28 +242,12 @@
                 window.location.href = '/login';
             } else {
                 alert("Failed to delete account.");
+                closeDeleteModal();
             }
-        }
-
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const getPreferredTheme = () => {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) return savedTheme;
-            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        };
-        const theme = getPreferredTheme();
-        if (theme === 'light') document.body.classList.add('light-mode');
-        if (themeToggle) {
-            themeToggle.innerHTML = theme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
         }
 
         loadProfile();
     </script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

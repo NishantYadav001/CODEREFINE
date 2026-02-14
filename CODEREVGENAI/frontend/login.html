@@ -6,30 +6,7 @@
     <title>Login - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --border-color: #334155;
-        }
-        body.light-mode {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --text-primary: #0f172a;
-            --text-secondary: #334155;
-            --border-color: #cbd5e1;
-        }
-        .bg-slate-900 { background-color: var(--bg-primary) !important; }
-        .bg-slate-800 { background-color: var(--bg-secondary) !important; }
-        .text-white { color: var(--text-primary) !important; }
-        .text-slate-300, .text-slate-400, .text-slate-500 { color: var(--text-secondary) !important; }
-        .border-slate-700 { border-color: var(--border-color) !important; }
-        
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
-        input, select { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
-    </style>
+    <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4">
 
@@ -104,6 +81,25 @@
         </div>
     </div>
 
+    <!-- Logout Confirmation Modal (Back Button Protection) -->
+    <div id="logoutConfirmModal" class="fixed inset-0 bg-black/90 z-[60] hidden flex items-center justify-center backdrop-blur-md">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md text-center">
+            <div class="w-16 h-16 bg-blue-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400">
+                <i class="fas fa-user-check text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Already Logged In</h3>
+            <p class="text-slate-400 mb-6">You are currently logged in. Do you want to logout or return to the app?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="confirmLogout()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-colors">
+                    Logout
+                </button>
+                <button onclick="goToApp()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-colors">
+                    Go to App
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Forgot Password Modal -->
     <div id="forgotModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md relative mx-4">
@@ -121,14 +117,36 @@
                     <label class="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
                     <input type="email" id="forgot-email" required class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 focus:border-blue-500 outline-none text-white placeholder-slate-500" placeholder="name@example.com">
                 </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors">
+                <button type="submit" id="forgot-submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors">
                     Send Reset Link
+                </button>
+                <button type="button" id="forgot-resend-btn" onclick="handleForgotSubmit(event)" class="hidden w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors">
+                    Resend Email
                 </button>
             </form>
         </div>
     </div>
 
     <script>
+        // Check auth on load to handle Back Button navigation
+        const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+        if (authToken) {
+            window.skipAuthRedirect = true; // Signal to theme.js to skip auto-redirect
+            document.getElementById('logoutConfirmModal').classList.remove('hidden');
+        }
+
+        function confirmLogout() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.reload();
+        }
+
+        function goToApp() {
+            const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType') || 'developer';
+            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+            window.location.href = `/app?userType=${userType}&email=${username}`;
+        }
+
         async function handleLogin(event) {
             event.preventDefault();
             
@@ -138,7 +156,7 @@
             const errorMsg = document.getElementById('errorMsg');
             
             try {
-                const response = await fetch('http://localhost:8000/api/login', {
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -156,14 +174,19 @@
                 const otherStorage = rememberMe ? sessionStorage : localStorage;
 
                 // Clear other storage to avoid conflicts
-                ['token', 'username', 'userType'].forEach(key => otherStorage.removeItem(key));
+                ['token', 'username', 'userType', 'role'].forEach(key => otherStorage.removeItem(key));
 
                 storage.setItem('token', data.token);
                 storage.setItem('username', data.username);
+                storage.setItem('role', data.role);
                 storage.setItem('userType', userType);
                 
-                // Redirect to app
-                window.location.href = `/app?userType=${userType}&email=${username}`;
+                // Redirect based on role
+                if (data.role === 'admin') {
+                    window.location.href = '/admin';
+                } else {
+                    window.location.href = `/app?userType=${userType}&email=${username}`;
+                }
                 
             } catch (error) {
                 errorMsg.textContent = error.message || 'Login failed. Try admin/password';
@@ -183,16 +206,24 @@
 
         function closeForgotModal() {
             document.getElementById('forgotModal').classList.add('hidden');
+            document.getElementById('forgot-submit-btn').classList.remove('hidden');
+            document.getElementById('forgot-resend-btn').classList.add('hidden');
         }
 
         async function handleForgotSubmit(e) {
             e.preventDefault();
             const email = document.getElementById('forgot-email').value;
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerText;
             
-            btn.disabled = true;
-            btn.innerText = "Sending...";
+            let activeBtn = document.getElementById('forgot-submit-btn');
+            if (e.type === 'click') {
+                const btn = e.target.closest('button');
+                if (btn) activeBtn = btn;
+            }
+
+            const originalText = activeBtn.innerText;
+            
+            activeBtn.disabled = true;
+            activeBtn.innerText = "Sending...";
             
             try {
                 const res = await fetch('/api/forgot-password', {
@@ -206,28 +237,17 @@
                 closeForgotModal();
             } catch (err) {
                 alert("Failed to send reset link. Please try again.");
+                document.getElementById('forgot-submit-btn').classList.add('hidden');
+                document.getElementById('forgot-resend-btn').classList.remove('hidden');
             } finally {
-                btn.disabled = false;
-                btn.innerText = originalText;
+                activeBtn.disabled = false;
+                activeBtn.innerText = originalText;
             }
         }
 
         // Do not auto-redirect on page load; require explicit login to reach /app
 
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'light') document.body.classList.add('light-mode');
-        
-        if (themeToggle) {
-            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
-        }
     </script>
-
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

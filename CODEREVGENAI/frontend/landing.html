@@ -7,33 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/assets/styles.css">
     <style>
-        :root {
-            --bg-primary: #111827; /* gray-900 */
-            --bg-secondary: #1f2937; /* gray-800 */
-            --text-primary: #f9fafb;
-            --text-secondary: #9ca3af;
-            --border-color: #374151;
-        }
-        body.light-mode {
-            --bg-primary: #f9fafb;
-            --bg-secondary: #ffffff;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --border-color: #e5e7eb;
-        }
-        /* Theme Overrides */
-        .bg-gray-900, .bg-gray-950, .bg-slate-900 { background-color: var(--bg-primary) !important; }
-        .bg-gray-800, .bg-slate-800 { background-color: var(--bg-secondary) !important; }
-        .text-white { color: var(--text-primary) !important; }
-        .text-gray-300, .text-gray-400, .text-gray-500 { color: var(--text-secondary) !important; }
-        .border-gray-700, .border-gray-800, .border-slate-700 { border-color: var(--border-color) !important; }
-        
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
         nav { background-color: transparent !important; }
-        
-        /* Input override */
-        input { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
     </style>
 </head>
 <body class="bg-slate-900 text-white font-sans">
@@ -150,20 +126,7 @@
                 navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW Registered!', reg.scope)).catch(err => console.log('SW Failed:', err));
             });
         }
-
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'light') document.body.classList.add('light-mode');
-        
-        if (themeToggle) {
-            themeToggle.innerHTML = savedTheme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
-        }
     </script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

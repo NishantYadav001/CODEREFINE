@@ -6,29 +6,7 @@
     <title>Settings - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #111827;
-            --bg-secondary: #1f2937;
-            --text-primary: #f9fafb;
-            --text-secondary: #9ca3af;
-            --border-color: #374151;
-        }
-        body.light-mode {
-            --bg-primary: #f9fafb;
-            --bg-secondary: #ffffff;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --border-color: #e5e7eb;
-        }
-        .bg-gray-900, .bg-slate-900 { background-color: var(--bg-primary) !important; }
-        .bg-gray-800, .bg-slate-800 { background-color: var(--bg-secondary) !important; }
-        .text-white { color: var(--text-primary) !important; }
-        .text-gray-400, .text-gray-500 { color: var(--text-secondary) !important; }
-        .border-gray-700, .border-slate-700 { border-color: var(--border-color) !important; }
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
-        input, select { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
-    </style>
+    <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body class="bg-slate-900 text-white font-sans">
 
@@ -43,6 +21,7 @@
                 <button id="theme-toggle" class="p-2 rounded hover:bg-gray-700 transition-colors">
                     <i class="fas fa-moon text-yellow-400"></i>
                 </button>
+            <a href="/profile" class="text-gray-300 hover:text-white">Profile</a>
             <a href="/app" class="text-gray-300 hover:text-white">Back to Editor</a>
             </div>
         </div>
@@ -62,6 +41,7 @@
                         <option value="llama-3.3-70b">Llama 3.3 70B (Balanced)</option>
                         <option value="llama-3.1-405b">Llama 3.1 405B (High Quality)</option>
                         <option value="mixtral-8x7b-32768">Mixtral 8x7B (Fastest)</option>
+                        <option value="gemini-pro">Gemini Pro</option>
                     </select>
                 </div>
 
@@ -89,6 +69,20 @@
                     </div>
                 </div>
 
+            <!-- API Configuration -->
+            <div>
+                <label class="block text-gray-400 mb-2 font-bold">Gemini_API_Key</label>
+                <div class="flex gap-2">
+                    <input type="password" id="gemini_api_key" placeholder="Enter your Gemini API Key" class="flex-1 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                    <button type="button" id="test-gemini-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded transition-colors border border-slate-600 font-bold"><i class="fas fa-plug mr-2"></i>Test</button>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-gray-400 mb-2 font-bold">GitHub Personal Access Token</label>
+                <input type="password" id="github-token" placeholder="ghp_..." class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+            </div>
+
                 <!-- Notifications -->
                 <div class="flex items-center justify-between pt-2">
                     <div>
@@ -101,7 +95,10 @@
                     </label>
                 </div>
 
-                <div class="pt-6 border-t border-slate-700 flex justify-end">
+                <div class="pt-6 border-t border-slate-700 flex justify-between items-center">
+                    <button type="button" id="reset-btn" class="text-slate-400 hover:text-red-400 transition-colors flex items-center gap-2 text-sm font-bold">
+                        <i class="fas fa-undo"></i> Reset to Defaults
+                    </button>
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition-colors flex items-center gap-2">
                         <i class="fas fa-save"></i> Save Settings
                     </button>
@@ -111,7 +108,7 @@
         </div>
     </div>
     
-    <div class="container mx-auto px-8 pb-8 max-w-2xl">
+    <div id="security-section" class="container mx-auto px-8 pb-8 max-w-2xl">
         <div class="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-8">
             <h2 class="text-2xl font-bold mb-6 border-b border-slate-700 pb-4">Account Security</h2>
             <div class="space-y-4">
@@ -132,6 +129,11 @@
     <script>
         const username = localStorage.getItem('username') || 'default';
 
+        // Guest Logic: Hide Security Section
+        if (username === 'Guest') {
+            document.getElementById('security-section').style.display = 'none';
+        }
+
         async function loadSettings() {
             try {
                 const res = await fetch(`/api/settings/${username}`);
@@ -145,12 +147,58 @@
                         document.getElementById('font-size').value = settings.font_size || 14;
                         document.getElementById('tab-size').value = settings.tab_size || 4;
                         document.getElementById('notifications').checked = settings.notifications || false;
+                        document.getElementById('gemini_api_key').value = settings.gemini_key || '';
+                        document.getElementById('github-token').value = settings.github_token || '';
+                        if (window.applyTheme) window.applyTheme(settings.theme || 'dark');
                     }
                 }
             } catch (e) {
                 console.error("Failed to load settings", e);
             }
         }
+
+        // Reset to Defaults
+        document.getElementById('reset-btn').addEventListener('click', async () => {
+            if (!confirm("Are you sure? This will reset all settings and clear API keys.")) return;
+            
+            const defaults = {
+                model: 'llama-3.3-70b',
+                theme: 'dark',
+                font_size: 14,
+                tab_size: 4,
+                notifications: false,
+                gemini_key: '',
+                github_token: ''
+            };
+
+            // Update UI
+            document.getElementById('default-model').value = defaults.model;
+            document.getElementById('theme-pref').value = defaults.theme;
+            document.getElementById('font-size').value = defaults.font_size;
+            document.getElementById('tab-size').value = defaults.tab_size;
+            document.getElementById('notifications').checked = defaults.notifications;
+            document.getElementById('gemini_api_key').value = defaults.gemini_key;
+            document.getElementById('github-token').value = defaults.github_token;
+
+            // Save to Backend
+            try {
+                const res = await fetch('/api/settings/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, settings: defaults })
+                });
+
+                if (res.ok) {
+                    const msg = document.getElementById('msg');
+                    msg.innerText = "Settings reset to defaults.";
+                    msg.className = "text-center text-sm mt-2 text-yellow-400";
+                    
+                    if (window.applyTheme) window.applyTheme(defaults.theme);
+                }
+            } catch (e) {
+                alert("Failed to reset settings");
+            }
+        });
 
         document.getElementById('settings-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -160,7 +208,9 @@
                 theme: document.getElementById('theme-pref').value,
                 font_size: parseInt(document.getElementById('font-size').value),
                 tab_size: parseInt(document.getElementById('tab-size').value),
-                notifications: document.getElementById('notifications').checked
+                notifications: document.getElementById('notifications').checked,
+                gemini_key: document.getElementById('gemini_api_key').value,
+                github_token: document.getElementById('github-token').value
             };
 
             const res = await fetch('/api/settings/update', {
@@ -175,10 +225,46 @@
                 msg.className = "text-center text-sm mt-2 text-green-400";
                 
                 // Apply theme immediately if changed (basic implementation)
-                localStorage.setItem('theme', settings.theme);
+                if (window.applyTheme) window.applyTheme(settings.theme);
             } else {
                 msg.innerText = "Failed to save settings.";
                 msg.className = "text-center text-sm mt-2 text-red-400";
+            }
+        });
+
+        // Test Gemini Connection
+        document.getElementById('test-gemini-btn').addEventListener('click', async () => {
+            const apiKey = document.getElementById('gemini_api_key').value;
+            const btn = document.getElementById('test-gemini-btn');
+            const msg = document.getElementById('msg');
+
+            if (!apiKey) return alert("Please enter an API key first.");
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/test-gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    msg.innerText = "✅ Connection Successful!";
+                    msg.className = "text-center text-sm mt-2 text-green-400";
+                } else {
+                    msg.innerText = "❌ " + (data.detail || "Connection Failed");
+                    msg.className = "text-center text-sm mt-2 text-red-400";
+                }
+            } catch (e) {
+                msg.innerText = "❌ Network Error";
+                msg.className = "text-center text-sm mt-2 text-red-400";
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         });
 
@@ -214,25 +300,8 @@
             }
         });
 
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const getPreferredTheme = () => {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) return savedTheme;
-            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        };
-        const theme = getPreferredTheme();
-        if (theme === 'light') document.body.classList.add('light-mode');
-        if (themeToggle) {
-            themeToggle.innerHTML = theme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
-        }
-
         loadSettings();
     </script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

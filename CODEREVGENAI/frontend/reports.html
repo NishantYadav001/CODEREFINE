@@ -6,28 +6,7 @@
     <title>Saved Reports - Code Refine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #111827;
-            --bg-secondary: #1f2937;
-            --text-primary: #f9fafb;
-            --text-secondary: #9ca3af;
-            --border-color: #374151;
-        }
-        body.light-mode {
-            --bg-primary: #f9fafb;
-            --bg-secondary: #ffffff;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --border-color: #e5e7eb;
-        }
-        .bg-gray-900 { background-color: var(--bg-primary) !important; }
-        .bg-gray-800, .bg-gray-750 { background-color: var(--bg-secondary) !important; }
-        .text-white { color: var(--text-primary) !important; }
-        .text-gray-300, .text-gray-400, .text-gray-500 { color: var(--text-secondary) !important; }
-        .border-gray-700 { border-color: var(--border-color) !important; }
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
-    </style>
+    <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body class="bg-gray-900 text-white font-sans">
 
@@ -122,25 +101,8 @@
             loadReports();
         }
 
-        // Theme Logic
-        const themeToggle = document.getElementById('theme-toggle');
-        const getPreferredTheme = () => {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) return savedTheme;
-            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        };
-        const theme = getPreferredTheme();
-        if (theme === 'light') document.body.classList.add('light-mode');
-        if (themeToggle) {
-            themeToggle.innerHTML = theme === 'light' ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            themeToggle.onclick = () => {
-                const isLight = document.body.classList.toggle('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                themeToggle.innerHTML = isLight ? '<i class="fas fa-sun text-yellow-500"></i>' : '<i class="fas fa-moon text-yellow-400"></i>';
-            };
-        }
-
         loadReports();
     </script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>
