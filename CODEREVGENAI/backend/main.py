@@ -34,6 +34,10 @@ from ai_service import (
     create_balanced_review_prompt, inject_policies, GEMINI_AVAILABLE
 )
 
+# Import Middleware/Dependencies
+from dependencies import get_current_user, get_current_admin, require_role
+from audit import AuditMiddleware, AUDIT_LOGS
+
 # OCR imports - try/except for optional dependency
 try:
     from PIL import Image
@@ -60,7 +64,7 @@ except ImportError:
     RateLimitExceeded = Exception # Dummy exception
     _rate_limit_exceeded_handler = None
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -94,6 +98,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register Audit Middleware
+app.add_middleware(AuditMiddleware)
 
 # Secure Headers Middleware
 @app.middleware("http")
@@ -339,10 +346,15 @@ async def login(payload: dict = Body(...)):
              raise HTTPException(status_code=503, detail="System is under maintenance. Admin access only.")
     
     username = user_data["username"]
-    # Generate JWT Token
-    access_token = create_access_token(data={"sub": username, "role": user_data.get("role", "user")})
+    role = user_data.get("role", "user")
     
-    return {"token": access_token, "username": username, "role": user_data.get("role", "user"), "message": "Login successful"}
+    # Hardened Sessions: Short timeout for Admins (15 mins), Standard for Users
+    expires = timedelta(minutes=15) if role == "admin" else None
+    
+    # Generate JWT Token with specific expiry
+    access_token = create_access_token(data={"sub": username, "role": role}, expires_delta=expires)
+    
+    return {"token": access_token, "username": username, "role": role, "message": "Login successful"}
 
 @app.post("/api/signup")
 async def signup(payload: dict = Body(...)):
@@ -395,15 +407,13 @@ async def logout(payload: dict = Body(...)):
     return {"message": "Logged out"}
 
 @app.post("/api/profile/update")
-async def update_profile(payload: dict = Body(...)):
+async def update_profile(payload: dict = Body(...), user: dict = Depends(get_current_user)):
     """Update user profile (email/password)"""
-    username = payload.get("username")
+    # Securely get username from token, not payload
+    username = user["username"]
     email = payload.get("email")
     new_password = payload.get("new_password")
     current_password = payload.get("current_password")
-    
-    if not username or username.lower() == "guest":
-        return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
     
     conn = get_db_connection()
     if conn:
@@ -673,7 +683,7 @@ async def download_report(payload: dict = Body(...)):
 # --- Dashboard Endpoint ---
 
 @app.get("/api/dashboard-data")
-async def get_dashboard_data():
+async def get_dashboard_data(user: dict = Depends(get_current_user)):
     """Get student dashboard data"""
     labels = list(STUDENT_STATS.keys()) if STUDENT_STATS else ["No data"]
     data = list(STUDENT_STATS.values()) if STUDENT_STATS else [0]
@@ -1692,7 +1702,7 @@ async def system_status():
 
 # 16. ADMIN USER MANAGEMENT
 @app.get("/api/admin/users")
-async def get_all_users():
+async def get_all_users(admin: dict = Depends(get_current_admin)):
     """Get list of all users (Admin only)"""
     users = []
     conn = get_db_connection()
@@ -1725,7 +1735,7 @@ async def get_all_users():
     return {"users": users}
 
 @app.post("/api/admin/reset-password")
-async def admin_reset_password(payload: dict = Body(...)):
+async def admin_reset_password(payload: dict = Body(...), admin: dict = Depends(get_current_admin)):
     """Reset user password (Admin only)"""
     target_username = payload.get("username")
     new_password = payload.get("new_password")
@@ -1762,16 +1772,18 @@ async def get_maintenance_status():
     return {"enabled": MAINTENANCE_MODE}
 
 @app.post("/api/admin/maintenance")
-async def set_maintenance_status(payload: dict = Body(...)):
+async def set_maintenance_status(payload: dict = Body(...), admin: dict = Depends(get_current_admin)):
     """Toggle maintenance mode (Admin only)"""
     global MAINTENANCE_MODE
-    username = payload.get("username")
-    if not username or not is_user_admin(username):
-        raise HTTPException(status_code=403, detail="Admin access required")
     
     enabled = payload.get("enabled", False)
     MAINTENANCE_MODE = enabled
     return {"message": f"Maintenance mode {'enabled' if enabled else 'disabled'}", "enabled": MAINTENANCE_MODE}
+
+@app.get("/api/admin/audit-logs")
+async def get_audit_logs(admin: dict = Depends(get_current_admin)):
+    """Get system audit logs (Admin only)"""
+    return {"logs": sorted(AUDIT_LOGS, key=lambda x: x['timestamp'], reverse=True)}
 
 # --- Password Reset (Simulated) ---
 
@@ -1892,11 +1904,19 @@ async def generate_page():
         return FileResponse(path)
     return HTMLResponse("<h1>Generate Page Not Found</h1>", status_code=404)
 
-@app.get("/{page}")
+@app.get("/")
+async def root():
+    path = Path(__file__).parent.parent / "frontend" / "landing.html"
+    if path.exists():
+        return FileResponse(path)
+    return HTMLResponse("<h1>Landing Page Not Found</h1>", status_code=404)
+
+@app.get("/{page:path}")
 async def serve_ui(page: str):
     # Dynamic path finding
     base_path = Path(__file__).parent.parent / "frontend"
     file_map = {
+        "index": "index.html",
         "app": "index.html", 
         "dashboard": "dashboard.html", 
         "login": "login.html",
@@ -1912,10 +1932,15 @@ async def serve_ui(page: str):
         "generate": "generate.html",
         "status": "status.html",
         "signup": "signup.html",
-        "register": "signup.html"
+        "register": "signup.html",
+        "unauthorized": "403.html" # Maps to Unauthorized Page
     }
     
-    target_file = file_map.get(page)
+    # Handle nested routes for SPA-like behavior
+    if page.startswith("admin/"):
+        target_file = "admin.html"
+    else:
+        target_file = file_map.get(page)
     
     # If page not found in map, serve 404
     if not target_file:
@@ -1929,13 +1954,6 @@ async def serve_ui(page: str):
     if path.exists():
         return FileResponse(path)
     return HTMLResponse("<h1>404: File Not Found</h1>", status_code=404)
-
-@app.get("/")
-async def root():
-    path = Path(__file__).parent.parent / "frontend" / "landing.html"
-    if path.exists():
-        return FileResponse(path)
-    return HTMLResponse("<h1>Landing Page Not Found</h1>", status_code=404)
 
 if __name__ == "__main__":
     import uvicorn

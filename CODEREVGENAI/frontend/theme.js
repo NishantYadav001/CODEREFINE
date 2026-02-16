@@ -11,11 +11,14 @@
     // Route Definitions
     const authPages = ['/login', '/signup'];
     const adminPages = ['/admin', '/batch', '/reports'];
-    const protectedPages = ['/profile', '/settings', '/collab', '/generate'];
+    const protectedPages = ['/profile', '/settings', '/collab'];
 
     // --- 2. STRICT ROUTE GUARDING ---
     // Prevent flickering by handling redirects immediately
     if (!window.skipAuthRedirect) {
+        // Explicitly allow /generate
+        if (path.includes('/generate')) return;
+
         // A. Guest Access Control
         if (isGuest) {
             // Guests cannot access Admin or Protected User pages

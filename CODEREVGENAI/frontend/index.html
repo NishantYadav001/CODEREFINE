@@ -3,677 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Refine</title>
+    <title>Code Refine - AI Editor</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
-    <!-- Mermaid JS for Flowcharts -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <!-- DOMPurify for XSS Prevention -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
-    <!-- IDB for IndexedDB Persistence -->
-    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
-    <!-- Prettier for Code Formatting -->
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/standalone.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/estree.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/babel.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/html.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/postcss.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/yaml.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prettier@3.2.5/plugins/markdown.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css">
     <!-- Monaco Editor Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-    <!-- Diff View Libraries -->
+    <!-- Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <!-- Diff2Html -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html-ui.min.js"></script>
-    <link rel="stylesheet" href="/assets/styles.css">
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --border-color: #334155;
-            --accent-color: #0ea5e9;
-        }
-
-        body.light-mode {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --bg-tertiary: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #334155;
-            --border-color: #cbd5e1;
-            --accent-color: #0284c7;
-        }
-        .bg-slate-700 { background-color: var(--bg-tertiary) !important; }
-        .bg-slate-600 { background-color: var(--bg-tertiary) !important; }
-
-        * { color: inherit; }
-        nav { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; border-bottom-color: var(--border-color) !important; }
-        .container { color: var(--text-primary); background-color: transparent; }
-        h1, h2, h3, h4, h5, h6 { color: var(--text-primary) !important; }
-
-        /* Form Elements */
-        input::placeholder, textarea::placeholder { color: var(--text-secondary) !important; }
-        input:focus, textarea:focus, select:focus { border-color: var(--accent-color) !important; }
-
-        /* Code Elements */
-        .code-editor { font-family: 'Fira Code', monospace; background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
-        .code-output { background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); overflow-x: auto; }
-
-        /* Buttons */
-        .btn-primary { background: linear-gradient(to right, #2563eb, #9333ea); transition: all 0.3s; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .mode-tab { cursor: pointer; transition: all 0.2s; }
-        .mode-tab.active { font-weight: bold; }
-
-        /* Panels */
-        .analysis-mode, .generation-mode { transition: opacity 0.3s ease-in-out; }
-        .hidden { display: none; }
-
-        /* Toast Notifications */
-        #toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            pointer-events: none;
-        }
-
-        .toast {
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 280px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease-out;
-            pointer-events: auto;
-        }
-
-        .toast.success { border-left: 4px solid #10b981; }
-        .toast.error { border-left: 4px solid #ef4444; }
-        .toast.info { border-left: 4px solid var(--accent-color); }
-        .toast.warning { border-left: 4px solid #f59e0b; }
-
-        @keyframes slideIn {
-            from { transform: translateX(400px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        @keyframes slideOut {
-            to { transform: translateX(400px); opacity: 0; }
-        }
-
-        .toast.removing { animation: slideOut 0.3s ease-in forwards; }
-
-        /* Drag & Drop */
-        .drag-over { background-color: var(--accent-color) !important; opacity: 0.5; border-color: var(--accent-color) !important; }
-
-        /* Search Results Highlight */
-        .search-highlight { background-color: rgba(34, 197, 94, 0.3); border-left: 3px solid #22c55e; }
-
-        .prose pre { background: transparent !important; padding: 0 !important; }
-
-        /* Skeleton Loader */
-        .skeleton {
-            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 0.5rem;
-        }
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* Terminal Output */
-        .terminal-window {
-            font-family: 'Fira Code', monospace;
-            background-color: #0f172a; /* Slate 900 */
-            border: 1px solid #334155;
-        }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { bg: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        /* Mobile View Utilities */
-        .mobile-hidden { display: none !important; }
-        @media (min-width: 1024px) {
-            .mobile-hidden { display: block !important; }
-        }
-
-        /* File Tree Styles */
-        #fileSidebar { transition: width 0.3s ease, padding 0.3s ease; }
-        .file-tree-item { cursor: pointer; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; }
-        .file-tree-item:hover { background-color: #334155; color: #fff; }
-        .file-tree-item.active { background-color: #0ea5e9; color: #fff; }
-        .folder-content { padding-left: 16px; border-left: 1px solid #334155; margin-left: 7px; }
-        .hidden { display: none; }
-    </style>
+    <!-- Highlight.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Marked & DOMPurify -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-50 h-screen flex flex-col overflow-hidden">
-    <!-- Toast Container -->
-    <div id="toast-container"></div>
-
-    <nav class="bg-slate-800 p-4 border-b border-slate-700 shadow-xl flex-none z-20">
-        <div class="container mx-auto flex items-center justify-between">
+<body class="bg-slate-900 text-white h-screen flex flex-col overflow-hidden">
+    <!-- Navbar -->
+    <nav class="bg-slate-800 border-b border-slate-700 p-3 flex-none z-20">
+        <div class="flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div>
-                    <h1 id="platform-title" class="text-xl font-bold text-sky-400 leading-none"><i class="fas fa-code-branch mr-2"></i>Code Refine</h1>
-                    <p id="platform-subtitle" class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Developer Edition</p>
-                </div>
+                <a href="/" class="text-xl font-bold text-blue-500 flex items-center gap-2">
+                    <i class="fas fa-code-branch"></i> Code Refine
+                </a>
+                <span id="platform-subtitle" class="text-xs text-slate-400 uppercase tracking-widest border-l border-slate-600 pl-3">Developer Edition</span>
+                <span id="user-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200">Pro</span>
             </div>
-            <div class="flex items-center gap-6">
-                <div id="student-tracking" class="hidden flex items-center gap-3 bg-slate-700/50 px-4 py-1.5 rounded-lg border border-slate-600">
-                    <span class="text-[10px] text-slate-400 uppercase font-bold">Total Reviews:</span>
-                    <span id="review-count" class="text-sky-400 font-bold">0</span>
+            <div class="flex items-center gap-4">
+                <div id="user-nav" class="flex items-center gap-4">
+                    <button id="theme-toggle" class="text-slate-400 hover:text-yellow-400 transition-colors"><i class="fas fa-moon"></i></button>
+                    <a href="/dashboard" class="text-slate-400 hover:text-white text-sm font-medium"><i class="fas fa-chart-line mr-1"></i> Dashboard</a>
+                    <a href="/profile" id="profile-link" class="text-slate-400 hover:text-white text-sm font-medium"><i class="fas fa-user mr-1"></i> Profile</a>
+                    <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm font-medium"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
-                
-                <!-- Guest Nav -->
-                <div id="guest-nav" class="hidden flex items-center gap-4">
-                    <a href="/login" class="text-slate-300 hover:text-white text-sm font-bold">Login</a>
-                    <a href="/signup" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white text-sm font-bold transition-colors">Sign Up</a>
-                </div>
-
-                <!-- User Nav -->
-                <div id="user-nav" class="flex items-center gap-6">
-                    <input type="text" id="search-results" placeholder="Search results..." class="hidden px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-300 outline-none focus:border-sky-500 w-40">
-                <a id="admin-dashboard-btn" href="/admin" class="hidden p-2 rounded-lg hover:bg-slate-700 transition-colors text-red-400 hover:text-red-300" title="Admin Console">
-                    <i class="fas fa-shield-alt"></i>
-                </a>
-                <button id="theme-toggle" title="Toggle dark/light mode" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
-                    <i class="fas fa-moon text-yellow-400"></i>
-                </button>
-                <button id="settings-btn" title="Editor Settings" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
-                    <i class="fas fa-cog text-slate-400"></i>
-                </button>
-                <button id="shortcuts-btn" title="Keyboard Shortcuts" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
-                    <i class="fas fa-keyboard text-slate-400"></i>
-                </button>
-                <a id="profile-link" href="/profile" title="My Profile" class="p-2 rounded-lg hover:bg-slate-700 transition-colors text-slate-400 hover:text-white">
-                    <i class="fas fa-user"></i>
-                </a>
-                <span id="user-badge" class="px-3 py-1 rounded-full bg-slate-700 text-xs font-bold border border-slate-600">Standard</span>
-                <button onclick="logout()" class="text-slate-400 hover:text-white transition-colors" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+                <div id="guest-nav" class="hidden flex items-center gap-3">
+                    <a href="/login" class="text-sm font-bold text-slate-300 hover:text-white">Login</a>
+                    <a href="/signup" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-sm font-bold transition-colors">Sign Up</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Layout: Sidebar + Content -->
-    <div class="flex flex-1 overflow-hidden relative">
-        
-        <!-- Main Workspace -->
-        <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-900 relative scroll-smooth">
-            <div class="container mx-auto max-w-7xl">
-        <!-- Mobile Tab Navigation -->
-        <div class="lg:hidden flex mb-4 bg-slate-800 rounded-xl p-1 border border-slate-700">
-            <button id="mobile-tab-editor" class="flex-1 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition-all">Editor</button>
-            <button id="mobile-tab-output" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all">Output</button>
-            <button id="mobile-tab-chat" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all">Chat</button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
-            <!-- Left Panel (Editor) -->
-            <div id="left-panel" class="space-y-4 transition-all">
-                
-                <div class="grid grid-cols-1 gap-4">
-                    <div id="policy-upload-zone" class="hidden bg-slate-800 p-3 rounded-xl border border-dashed border-sky-500/40">
-                        <label class="text-[10px] font-bold text-sky-400 block mb-2 uppercase italic"><i class="fas fa-file-shield mr-1"></i> Upload Company Policy</label>
-                        <input type="file" id="policyFile" accept=".txt,.pdf" class="text-[10px] text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:bg-sky-500/10 file:text-sky-400 cursor-pointer">
-                    </div>
+    <!-- Main Layout -->
+    <div class="flex-1 flex overflow-hidden relative">
+        <!-- Left Panel (Editor) -->
+        <div id="left-panel" class="w-full lg:w-1/2 flex flex-col border-r border-slate-700 bg-slate-900 relative">
+            <!-- Toolbar -->
+            <div class="flex items-center justify-between p-2 bg-slate-800 border-b border-slate-700">
+                <div class="flex items-center gap-2">
+                    <select id="editorLang" class="bg-slate-700 text-xs text-white border border-slate-600 rounded px-2 py-1 outline-none focus:border-blue-500">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                        <option value="sql">SQL</option>
+                    </select>
+                    <button id="formatBtn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded" title="Format Code"><i class="fas fa-align-left"></i></button>
+                    <button id="minifyBtn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded" title="Minify Code"><i class="fas fa-compress-arrows-alt"></i></button>
                 </div>
-
-                <!-- Tab Selection -->
-                <div class="flex gap-2 mb-4 flex-wrap">
-                    <button id="modeAnalysis" class="mode-tab active px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-sky-600 border-sky-600 text-white">
-                        <i class="fas fa-microscope mr-2"></i>Analyze Code
+                <div class="flex items-center gap-2">
+                    <button id="runCodeBtn" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors">
+                        <i class="fas fa-play"></i> Run
                     </button>
-                    <button id="modeGenerate" class="mode-tab px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-slate-700 border-slate-700 text-slate-300 hover:bg-slate-600">
-                        <i class="fas fa-sparkles mr-2"></i>Generate Code
+                    <button id="reviewBtn" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors">
+                        <i class="fas fa-microscope"></i> Review
                     </button>
-                </div>
-
-                <!-- Analysis Mode -->
-                <div id="analysis-panel" class="analysis-mode space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Workspace</div>
-                        <span id="detectedLangDisplay" class="text-xs text-sky-400 font-mono hidden"></span>
-                    </div>
-
-                    <!-- Tools & Config Bar -->
-                    <div class="grid grid-cols-1 gap-3">
-                        <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 flex items-center gap-2">
-                            <div class="flex-1">
-                                <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1 block">Import Source</label>
-                                <div class="flex gap-2">
-                                    <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 transition-all shadow-sm">
-                                        <i class="fas fa-folder-open text-yellow-400"></i> <span class="hidden sm:inline">Open File</span>
-                                        <input type="file" id="localFile" class="hidden">
-                                    </label>
-                                    <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 transition-all shadow-sm">
-                                        <i class="fas fa-camera text-sky-400"></i> <span class="hidden sm:inline">Scan Image</span>
-                                        <input type="file" id="ocrFile" accept="image/*" class="hidden">
-                                    </label>
-                                    <div class="flex-1 flex gap-1">
-                                        <input type="text" id="githubUrl" placeholder="GitHub / Raw URL..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-sky-500">
-                                        <button id="loadGithubBtn" class="bg-slate-700 hover:bg-sky-600 text-white px-3 rounded-lg border border-slate-600 transition-colors"><i class="fas fa-arrow-right"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Editor Container -->
-                    <div id="editorWrapper" class="border border-slate-700 rounded-xl overflow-hidden bg-slate-900 shadow-lg group">
-                        <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-slate-700">
-                            <div class="flex items-center gap-2">
-                                <i class="fas fa-code text-slate-400 text-sm"></i>
-                                <span class="text-xs font-bold text-slate-300">Code Editor</span>
-                            </div>
-                            <div class="flex gap-1 flex-wrap justify-end">
-                                <!-- Analysis Buttons -->
-                                <button id="reviewBtn" class="px-2 py-1 text-xs font-bold text-sky-400 hover:text-white hover:bg-sky-600 rounded transition-colors mr-1" title="Run Review (Ctrl+Enter)"><i class="fas fa-microscope mr-1"></i> Review</button>
-                                <button id="fixBtn" class="px-2 py-1 text-xs font-bold text-yellow-400 hover:text-white hover:bg-yellow-600 rounded transition-colors mr-1" title="Auto-Rewrite"><i class="fas fa-wand-magic-sparkles mr-1"></i> Fix</button>
-                                
-                                <!-- Shared Buttons -->
-                                <button id="runCodeBtn" class="px-2 py-1 text-xs font-bold text-emerald-400 hover:text-white hover:bg-emerald-600 rounded transition-colors mr-1" title="Run Code"><i class="fas fa-play mr-1"></i> Run</button>
-                                <button id="visualizeBtn" class="px-2 py-1 text-xs font-bold text-purple-400 hover:text-white hover:bg-purple-600 rounded transition-colors mr-2" title="Visualize Logic"><i class="fas fa-project-diagram mr-1"></i> Viz</button>
-                                <div class="w-px h-4 bg-slate-700 mx-1 self-center hidden sm:block"></div>
-                                <button id="formatBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Format Code"><i class="fas fa-align-left mr-1"></i> Format</button>
-                                <button id="minifyBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Minify Code"><i class="fas fa-compress-arrows-alt mr-1"></i> Minify</button>
-                                <button id="wordWrapBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Toggle Word Wrap"><i class="fas fa-paragraph"></i></button>
-                                <button id="voiceCodeBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Voice Command"><i class="fas fa-microphone"></i></button>
-                                <button id="clearEditorBtn" class="px-2 py-1 text-xs font-medium text-red-400 hover:text-white hover:bg-red-900/50 rounded transition-colors" title="Clear Editor"><i class="fas fa-trash"></i></button>
-                                <button id="fullscreenBtn" class="px-2 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Toggle Fullscreen"><i class="fas fa-expand"></i></button>
-                            </div>
-                        </div>
-                        <div id="monaco-container" class="w-full h-[400px] dropzone"></div>
-                        <div class="bg-slate-800 px-4 py-2 border-t border-slate-700 flex items-center justify-between gap-3 flex-wrap">
-                            <div class="flex items-center gap-3">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-crosshairs text-sky-400 mr-1"></i>Focus:</span>
-                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Bugs" checked class="mr-1.5 accent-sky-500 rounded">Bugs</label>
-                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Performance" checked class="mr-1.5 accent-sky-500 rounded">Performance</label>
-                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Security" checked class="mr-1.5 accent-sky-500 rounded">Security</label>
-                                <label class="flex items-center cursor-pointer text-xs text-slate-300 hover:text-white"><input type="checkbox" name="focusArea" value="Best Practices" checked class="mr-1.5 accent-sky-500 rounded">Best Practices</label>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span id="cursorStatus" class="text-[10px] font-mono text-slate-500">Ln 1, Col 1</span>
-                                <select id="editorLang" class="bg-slate-900 border border-slate-600 rounded-lg p-1 text-xs outline-none focus:border-sky-500 text-slate-300 w-24">
-                                    <option value="python">Python</option><option value="javascript">JavaScript</option><option value="typescript">TypeScript</option><option value="java">Java</option><option value="cpp">C++</option><option value="csharp">C#</option><option value="go">Go</option><option value="rust">Rust</option><option value="html">HTML</option><option value="css">CSS</option><option value="json">JSON</option><option value="sql">SQL</option>
-                                </select>
-                                <div class="w-px h-3 bg-slate-700"></div>
-                                <label class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-brain text-purple-400 mr-1"></i>Model:</label>
-                                <select id="modelSelectorAnalysis" class="bg-slate-900 border border-slate-600 rounded-lg p-1 text-xs outline-none focus:border-sky-500 text-slate-300 w-40">
-                                    <option value="llama-3.3-70b">🦙 Llama 3.3 70B</option>
-                                    <option value="llama-3.1-405b">🦙 Llama 3.1 405B</option>
-                                    <option value="mixtral-8x7b-32768">🎯 Mixtral 8x7B</option>
-                                    <option value="gemini-pro">✨ Gemini Pro</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Execution & Visualization Output -->
-                    <div id="toolsOutputSection" class="hidden space-y-4">
-                        <div id="terminalContainer" class="hidden">
-                            <h3 class="text-xs font-bold text-emerald-400 uppercase mb-2"><i class="fas fa-terminal mr-2"></i>Terminal Output</h3>
-                            <pre id="terminalOutput" class="terminal-window p-4 rounded-xl text-sm text-slate-300 overflow-x-auto min-h-[100px] max-h-[300px] whitespace-pre-wrap">Ready to execute...</pre>
-                        </div>
-                        <div id="visualizerContainer" class="hidden">
-                            <h3 class="text-xs font-bold text-purple-400 uppercase mb-2"><i class="fas fa-sitemap mr-2"></i>Logic Flowchart</h3>
-                            <div id="mermaidOutput" class="bg-white/5 p-4 rounded-xl overflow-x-auto flex justify-center min-h-[200px]"></div>
-                        </div>
-                    </div>
-                </div>
-
-            <!-- Right Panel (Output/Chat) -->
-            <div id="right-panel" class="flex flex-col mobile-hidden lg:block">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex gap-2 bg-slate-800/50 p-1 rounded-lg border border-slate-700">
-                        <button id="tabResults" class="px-4 py-1.5 rounded-md text-xs font-bold bg-slate-600 text-white shadow-sm transition-all">
-                            <i class="fas fa-chart-pie mr-2"></i>Results
-                        </button>
-                        <button id="tabChat" class="px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
-                            <i class="fas fa-comments mr-2"></i>AI Chat
-                        </button>
-                    </div>
-                    <div id="plagiarism-badge" class="hidden px-3 py-1 bg-orange-900/40 border border-orange-700 rounded-lg ml-auto">
-                        <span class="text-[10px] text-orange-300 font-bold uppercase">Similarity: </span>
-                        <span id="plag-score" class="text-xs font-bold text-white">0%</span>
-                    </div>
-                </div>
-                
-                <div id="reviewResults" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex-grow overflow-y-auto max-h-[550px]">
-                    <div class="grid grid-cols-4 gap-3 text-center mb-6">
-                        <div class="p-2 bg-red-900/40 border border-red-700/50 rounded-xl">
-                            <p id="critical-count" class="font-bold text-2xl text-red-400">0</p>
-                            <p class="text-[10px] uppercase font-bold text-red-300">Critical</p>
-                        </div>
-                        <div class="p-2 bg-orange-900/40 border border-orange-700/50 rounded-xl">
-                            <p id="high-count" class="font-bold text-2xl text-orange-400">0</p>
-                            <p class="text-[10px] uppercase font-bold text-orange-300">High</p>
-                        </div>
-                        <div class="p-2 bg-yellow-900/40 border border-yellow-700/50 rounded-xl">
-                            <p id="medium-count" class="font-bold text-2xl text-yellow-400">0</p>
-                            <p class="text-[10px] uppercase font-bold text-yellow-300">Medium</p>
-                        </div>
-                        <div class="p-2 bg-blue-900/40 border border-blue-700/50 rounded-xl">
-                             <p id="low-count" class="font-bold text-2xl text-blue-400">0</p>
-                             <p class="text-[10px] uppercase font-bold text-blue-300">Low</p>
-                        </div>
-                    </div>
-                    <div id="reviewFeedback" class="prose prose-invert max-w-none text-slate-300">
-                        <p class="italic text-slate-500">Run a review to see AI insights...</p>
-                    </div>
-                </div>
-
-                <!-- Chat Interface -->
-                <div id="chatInterface" class="hidden bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-2xl flex-grow flex flex-col h-[550px]">
-                    <div class="flex justify-end mb-2">
-                        <button id="clearChatBtn" class="text-[10px] uppercase font-bold text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1">
-                            <i class="fas fa-trash-alt"></i> Clear Chat
-                        </button>
-                    </div>
-                    <div id="chatHistory" class="flex-grow overflow-y-auto space-y-4 mb-4 pr-2">
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white text-xs"></i></div>
-                            <div class="bg-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 border border-slate-600">
-                                Hello! I'm ready to answer questions about your code.
-                            </div>
-                        </div>
-                    </div>
-                    <div class="relative">
-                        <input type="text" id="chatInput" placeholder="Ask a question about the code..." 
-                            class="w-full bg-slate-900/50 border border-slate-600 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-200 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
-                        <button id="sendChatBtn" class="absolute right-2 top-2 p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all">
-                            <i class="fas fa-paper-plane text-xs"></i>
-                        </button>
-                    </div>
+                    <button id="fixBtn" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors">
+                        <i class="fas fa-wand-magic-sparkles"></i> Fix
+                    </button>
+                    <button id="settings-btn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded"><i class="fas fa-cog"></i></button>
                 </div>
             </div>
-        </div>
 
-        <div class="mt-12 bg-slate-800/30 p-6 rounded-3xl border border-slate-800">
-            <h2 class="text-xl font-bold mb-6 text-center text-slate-400 uppercase tracking-widest">Code Transformation & Analysis</h2>
+            <!-- Editor Container -->
+            <div id="editorWrapper" class="flex-1 relative">
+                <div id="monaco-container" class="absolute inset-0"></div>
+            </div>
             
-            <div id="complexity-section" class="hidden mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-slate-700/50 p-5 rounded-2xl border border-orange-700/30">
-                    <h3 class="text-sm font-bold text-orange-400 mb-4 uppercase tracking-wide flex items-center gap-2">
-                        <i class="fas fa-clock"></i> Original Code Complexity
-                    </h3>
-                    <div class="flex items-center gap-3">
-                        <div class="text-4xl font-black text-orange-400" id="original-complexity-display">O(n)</div>
-                        <p class="text-xs text-slate-400">Time complexity of the original code</p>
-                    </div>
-                </div>
+            <!-- Status Bar -->
+            <div class="bg-slate-800 text-slate-400 text-[10px] p-1 px-3 flex justify-between items-center border-t border-slate-700">
+                <div id="cursorStatus">Ln 1, Col 1</div>
+                <div id="detectedLangDisplay" class="hidden text-blue-400"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel (Output/Chat) -->
+        <div id="right-panel" class="w-full lg:w-1/2 flex flex-col bg-slate-900 h-full overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-700 bg-slate-800">
+                <button id="tabResults" class="flex-1 py-3 text-sm font-bold text-white border-b-2 border-blue-500 bg-slate-700/50">
+                    <i class="fas fa-clipboard-check mr-2"></i>Results
+                </button>
+                <button id="tabChat" class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors">
+                    <i class="fas fa-comments mr-2"></i>AI Chat
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto p-4 relative scroll-smooth" id="rightContent">
                 
-                <div class="bg-slate-700/50 p-5 rounded-2xl border border-green-700/30">
-                    <h3 class="text-sm font-bold text-green-400 mb-4 uppercase tracking-wide flex items-center gap-2">
-                        <i class="fas fa-rocket"></i> Optimized Code Complexity
-                    </h3>
-                    <div class="flex items-center gap-3">
-                        <div class="text-4xl font-black text-green-400" id="rewritten-complexity-display">O(n)</div>
-                        <p class="text-xs text-slate-400">Time complexity of the rewritten code</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end mb-2">
-                <button id="toggleDiffBtn" class="hidden text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded border border-slate-600 text-slate-300"><i class="fas fa-columns mr-1"></i> Toggle Diff View</button>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="codeDisplaySection">
-                <div id="originalCodeSection" class="flex flex-col h-full">
-                    <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider pl-2">Original Input</span>
-                        <div class="flex gap-1.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
-                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
-                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                <!-- Review Results View -->
+                <div id="reviewResults" class="space-y-6">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div class="bg-red-900/20 border border-red-900/50 p-2 rounded-lg">
+                            <div class="text-xl font-bold text-red-400" id="critical-count">0</div>
+                            <div class="text-[10px] text-red-300 uppercase">Critical</div>
+                        </div>
+                        <div class="bg-orange-900/20 border border-orange-900/50 p-2 rounded-lg">
+                            <div class="text-xl font-bold text-orange-400" id="high-count">0</div>
+                            <div class="text-[10px] text-orange-300 uppercase">High</div>
+                        </div>
+                        <div class="bg-yellow-900/20 border border-yellow-900/50 p-2 rounded-lg">
+                            <div class="text-xl font-bold text-yellow-400" id="medium-count">0</div>
+                            <div class="text-[10px] text-yellow-300 uppercase">Medium</div>
+                        </div>
+                        <div class="bg-blue-900/20 border border-blue-900/50 p-2 rounded-lg">
+                            <div class="text-xl font-bold text-blue-400" id="low-count">0</div>
+                            <div class="text-[10px] text-blue-300 uppercase">Low</div>
                         </div>
                     </div>
-                    <pre class="code-output rounded-b-xl border border-slate-700 p-4 min-h-[300px] flex-1 text-sm"><code id="originalCodeOutput" class="language-python"></code></pre>
-                </div>
-                <div class="relative flex flex-col h-full" id="generatedCodeSection">
-                     <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
-                        <span class="text-xs font-bold text-sky-400 uppercase tracking-wider pl-2 flex items-center gap-2"><i class="fas fa-wand-magic-sparkles"></i> AI Rewritten</span>
-                        <div class="flex gap-2">
-                             <button id="copyBtn" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
-                             <button id="downloadCodeBtn" class="hidden text-slate-400 hover:text-white transition-colors px-2" title="Download Code"><i class="fas fa-download"></i></button>
+
+                    <!-- Feedback Area -->
+                    <div id="reviewFeedback" class="prose prose-invert prose-sm max-w-none">
+                        <div class="text-center text-slate-500 py-10">
+                            <i class="fas fa-code text-4xl mb-4 opacity-50"></i>
+                            <p>Run a review or fix to see AI insights here.</p>
                         </div>
                     </div>
-                     <pre class="code-output rounded-b-xl border border-slate-700 border-sky-500/30 p-4 min-h-[300px] flex-1 text-sm relative"><code id="rewrittenCodeOutput" class="language-python"></code></pre>
-                </div>
-            </div>
 
-            <!-- Diff View Container -->
-            <div id="diffViewContainer" class="hidden bg-white rounded-xl overflow-hidden p-1"></div>
-
-            <!-- Generation Mode Placeholder -->
-            <div id="generationPlaceholder" class="hidden mt-8">
-                <div class="bg-gradient-to-br from-emerald-900/20 to-teal-900/20 border border-emerald-700/40 rounded-3xl p-12 text-center">
-                    <div class="text-6xl mb-4"><i class="fas fa-magic text-emerald-400"></i></div>
-                    <h3 class="text-2xl font-bold text-emerald-300 mb-2">Ready to Generate Code</h3>
-                    <p class="text-slate-400">Enter your prompt above and click "Generate Code" to create your custom code</p>
-                </div>
-            </div>
-
-            <!-- Advanced Features Section -->
-            <div id="advanced-features" class="hidden mt-8 pt-8 border-t border-slate-700">
-                <h3 class="text-lg font-bold mb-4 text-slate-400 uppercase tracking-wide flex items-center gap-2">
-                    <i class="fas fa-flask-vial"></i> Advanced Tools
-                </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <button id="generateTestsBtn" class="bg-slate-700/40 hover:bg-slate-600/50 border border-slate-600/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 transition-all">
-                        <i class="fas fa-flask"></i>
-                        <div class="text-left">
-                            <div>Generate Tests</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Unit test code</div>
+                    <!-- Rewritten Code Output (Hidden initially) -->
+                    <div id="codeDisplaySection" class="hidden">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-emerald-400"><i class="fas fa-check-circle mr-2"></i>Fixed Code</h3>
+                            <div class="flex gap-2">
+                                <button id="toggleDiffBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white">Diff View</button>
+                                <button id="downloadCodeBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white">Download</button>
+                            </div>
                         </div>
-                    </button>
-                    
-                    <button id="generateDocsBtn" class="bg-slate-700/40 hover:bg-slate-600/50 border border-slate-600/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 transition-all">
-                        <i class="fas fa-book"></i>
-                        <div class="text-left">
-                            <div>Generate Docs</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Documentation & comments</div>
-                        </div>
-                    </button>
-                    
-                    <button id="securityScanBtn" class="bg-slate-700/40 hover:bg-slate-600/50 border border-slate-600/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 transition-all">
-                        <i class="fas fa-shield-alt"></i>
-                        <div class="text-left">
-                            <div>Security Scan</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Vulnerability check</div>
-                        </div>
-                    </button>
-                    
-                    <button id="refactorSuggestionsBtn" class="bg-slate-700/40 hover:bg-slate-600/50 border border-slate-600/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 transition-all">
-                        <i class="fas fa-hammer"></i>
-                        <div class="text-left">
-                            <div>Refactor Suggestions</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Code improvement tips</div>
-                        </div>
-                    </button>
-                    
-                    <button id="saveSnippetBtn" class="bg-slate-700/40 hover:bg-slate-600/50 border border-slate-600/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 transition-all">
-                        <i class="fas fa-bookmark"></i>
-                        <div class="text-left">
-                            <div>Save as Snippet</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Save for reuse</div>
-                        </div>
-                    </button>
-                    
-                    <button id="viewHistoryBtn" class="bg-slate-700/40 hover:bg-slate-600/50 border border-slate-600/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 transition-all">
-                        <i class="fas fa-history"></i>
-                        <div class="text-left">
-                            <div>View History</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Previous versions</div>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <div id="download-section" class="hidden mt-8 pt-8 border-t border-slate-700">
-                <h3 class="text-lg font-bold mb-4 text-slate-400 uppercase tracking-wide flex items-center gap-2">
-                    <i class="fas fa-file-download"></i> Export & Share
-                </h3>
-                
-                <div class="mb-4 flex items-center gap-3 bg-slate-700/30 p-3 rounded-lg">
-                    <span class="text-sm font-bold text-slate-400">Download Format:</span>
-                    <div class="flex gap-2">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="downloadFormat" value="docx" checked class="accent-sky-500">
-                            <span class="text-sm text-slate-300">Word (.docx)</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="downloadFormat" value="pdf" class="accent-sky-500">
-                            <span class="text-sm text-slate-300">PDF (.pdf)</span>
-                        </label>
+                        <pre class="bg-slate-950 p-4 rounded-lg border border-slate-700 overflow-x-auto"><code id="rewrittenCodeOutput" class="language-python text-sm"></code></pre>
                     </div>
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <button id="downloadCodeFileBtn" class="bg-gradient-to-r from-emerald-900/40 to-emerald-800/20 hover:from-emerald-900/60 hover:to-emerald-800/40 border border-emerald-700/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all">
-                        <i class="fas fa-code"></i>
-                        <div class="text-left">
-                            <div>Download Code</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Optimized source file</div>
-                        </div>
-                    </button>
-                    <button id="downloadSummaryBtn" class="bg-gradient-to-r from-blue-900/40 to-blue-800/20 hover:from-blue-900/60 hover:to-blue-800/40 border border-blue-700/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all">
-                        <i class="fas fa-file-alt"></i>
-                        <div class="text-left">
-                            <div>Download Summary</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Review & analysis</div>
-                        </div>
-                    </button>
-                    <button id="downloadReportBtn" class="bg-gradient-to-r from-purple-900/40 to-purple-800/20 hover:from-purple-900/60 hover:to-purple-800/40 border border-purple-700/50 px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all">
-                        <i class="fas fa-file-pdf"></i>
-                        <div class="text-left">
-                            <div>Download Report</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Complete documentation</div>
-                        </div>
-                    </button>
-                    <button id="saveGithubBtn" class="bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 border border-gray-600 px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all">
-                        <i class="fab fa-github"></i>
-                        <div class="text-left">
-                            <div>Save to GitHub</div>
-                            <div class="text-[10px] text-slate-400 font-normal">Commit to repo</div>
-                        </div>
-                    </button>
-                </div>
-            </div>
-            </div>
-        </main>
-    </div>
+                    <!-- Diff View Container -->
+                    <div id="diffViewContainer" class="hidden bg-white rounded-lg overflow-hidden text-black"></div>
 
-    <!-- Keyboard Shortcuts Modal -->
-    <div id="shortcutsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md relative transform transition-all scale-100">
-            <button id="closeShortcutsBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
-            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-keyboard text-sky-400"></i> Keyboard Shortcuts</h3>
-            <div class="space-y-3">
-                <div class="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
-                    <span class="text-slate-300 text-sm">Run Review</span>
-                    <span class="px-2 py-1 bg-slate-600 rounded text-xs font-mono text-white border border-slate-500">Ctrl + Enter</span>
-                </div>
-                <div class="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
-                    <span class="text-slate-300 text-sm">Generate Code</span>
-                    <span class="px-2 py-1 bg-slate-600 rounded text-xs font-mono text-white border border-slate-500">Ctrl + G</span>
-                </div>
-                <div class="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
-                    <span class="text-slate-300 text-sm">Format Code</span>
-                    <span class="px-2 py-1 bg-slate-600 rounded text-xs font-mono text-white border border-slate-500">Alt + Shift + F</span>
+                    <!-- Terminal Output -->
+                    <div id="terminalContainer" class="hidden bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-sm">
+                        <div class="text-slate-500 text-xs uppercase mb-2 border-b border-slate-800 pb-1">Terminal Output</div>
+                        <div id="terminalOutput" class="whitespace-pre-wrap"></div>
+                    </div>
+
+                    <!-- Visualizer Output -->
+                    <div id="visualizerContainer" class="hidden bg-slate-800 border border-slate-700 rounded-lg p-4 flex justify-center">
+                        <div id="mermaidOutput"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fas fa-cog text-slate-400"></i> Editor Settings</h3>
-                <button id="closeSettingsBtn" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-slate-300 mb-2">Font Size</label>
-                    <input type="range" id="settingFontSize" min="10" max="24" value="14" class="w-full accent-sky-500">
-                    <div class="text-right text-xs text-slate-400" id="fontSizeVal">14px</div>
-                </div>
-                <div class="flex items-center justify-between">
-                    <label class="text-sm font-bold text-slate-300">Minimap</label>
-                    <input type="checkbox" id="settingMinimap" class="accent-sky-500 w-5 h-5">
-                </div>
-                <div class="flex items-center justify-between">
-                    <label class="text-sm font-bold text-slate-300">Word Wrap</label>
-                    <input type="checkbox" id="settingWordWrap" class="accent-sky-500 w-5 h-5">
-                </div>
-                <div class="flex items-center justify-between">
-                    <label class="text-sm font-bold text-slate-300">Line Numbers</label>
-                    <input type="checkbox" id="settingLineNumbers" checked class="accent-sky-500 w-5 h-5">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- GitHub Modal -->
-    <div id="githubModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md relative">
-            <button id="closeGithubBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
-            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i class="fab fa-github text-white"></i> Save to GitHub</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">Repository (username/repo)</label>
-                    <input type="text" id="ghRepo" placeholder="e.g., octocat/hello-world" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-sm text-white focus:border-sky-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">File Path</label>
-                    <input type="text" id="ghPath" placeholder="e.g., src/main.py" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-sm text-white focus:border-sky-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">Commit Message</label>
-                    <input type="text" id="ghMessage" value="Update via Code Refine" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-sm text-white focus:border-sky-500 outline-none">
-                </div>
-                <button id="confirmGithubBtn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-lg transition-colors">Commit Changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Command Palette -->
-    <div id="commandPalette" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-start justify-center pt-20 backdrop-blur-sm">
-        <div class="bg-slate-800 w-full max-w-lg rounded-xl border border-slate-700 shadow-2xl overflow-hidden">
-            <div class="p-3 border-b border-slate-700 flex items-center gap-3">
-                <i class="fas fa-search text-slate-400"></i>
-                <input type="text" id="cmdInput" placeholder="Type a command..." class="bg-transparent w-full outline-none text-slate-200 placeholder-slate-500">
-                <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-400">ESC</span>
-            </div>
-            <div id="cmdList" class="max-h-64 overflow-y-auto p-2 space-y-1"></div>
-        </div>
-    </div>
-
-    <!-- Main Logic -->
-    <script type="module" src="/main.js"></script>
-    <script src="/theme.js"></script>
+    <!-- Scripts -->
+    <script type="module" src="/assets/main.js"></script>
+    <script src="/assets/theme.js"></script>
 </body>
 </html>

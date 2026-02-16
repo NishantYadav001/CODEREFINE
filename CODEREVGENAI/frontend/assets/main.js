@@ -109,6 +109,10 @@ const initApp = () => {
         // Process Code (Review or Rewrite)
         async function processCode(action) {
             // Get code from Monaco
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
             
             if (!code.trim()) {
@@ -177,7 +181,7 @@ const initApp = () => {
                 const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                 const response = await fetch(`/api/${endpoint}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({
                         code: code,
                         language: language,
@@ -336,6 +340,10 @@ const initApp = () => {
             const code = window.monacoEditor.getValue();
             if (!code.trim()) return showToast("No code to minify!", "warning");
             
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            
             showToast("Minifying code...", "info");
 
             try {
@@ -344,7 +352,7 @@ const initApp = () => {
                 
                 const response = await fetch(`/api/generate`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({
                         prompt: `Minify the following ${lang} code. Remove all unnecessary whitespace, newlines, and comments to make it as compact as possible while preserving functionality. Return ONLY the minified code. Do not use markdown blocks.\n\nCode:\n${code}`,
                         language: lang,
@@ -383,6 +391,10 @@ const initApp = () => {
             if(get('terminalContainer')) get('terminalContainer').classList.add('hidden');
 
             mermaidOutput.innerHTML = '<div class="animate-pulse text-purple-400"><i class="fas fa-brain fa-spin mr-2"></i>Analyzing logic flow...</div>';
+            
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
             try {
                 const prompt = "Generate a Mermaid.js flowchart (graph TD) representing the logic of this code. Return ONLY the mermaid code inside a markdown block (```mermaid ... ```). Do not explain.";
@@ -390,7 +402,7 @@ const initApp = () => {
                 
                 const response = await fetch(`/api/generate`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({
                         prompt: `${prompt}\n\nCode:\n${code}`,
                         language: "mermaid",
@@ -467,9 +479,13 @@ const initApp = () => {
                     const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
                     const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                     
+                    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (token) headers['Authorization'] = `Bearer ${token}`;
+                    
                     const res = await fetch('/api/generate', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: headers,
                         body: JSON.stringify({
                             prompt: `Context Code:\n${code}\n\nUser Question: ${msg}\n\nAnswer the question based on the code context. Keep it concise.`,
                             language: "markdown",
