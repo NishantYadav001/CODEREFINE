@@ -9,7 +9,6 @@ import hashlib
 import csv
 import platform
 import smtplib
-import threading
 import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -17,6 +16,23 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List
 from contextlib import asynccontextmanager
+
+# Import Modules
+from config import settings, AVAILABLE_MODELS
+from database import (
+    init_db, get_db_connection, USER_DB, CODE_DATABASE, STUDENT_STATS, 
+    ACTIVE_SESSIONS, COMPANY_POLICIES, CODE_SNIPPETS, CODE_HISTORY, 
+    USER_ANALYTICS, USER_SETTINGS, PERFORMANCE_METRICS, WEBHOOKS, 
+    API_RATE_LIMITS, NEWSLETTER_SUBS, MAINTENANCE_MODE, GUEST_USAGE
+)
+from security import (
+    verify_password, get_password_hash, create_access_token, 
+    encrypt_secret, decrypt_secret, sanitize_html
+)
+from ai_service import (
+    get_ai_response, analyze_complexity, check_plagiarism, 
+    create_balanced_review_prompt, inject_policies, GEMINI_AVAILABLE
+)
 
 # OCR imports - try/except for optional dependency
 try:
@@ -26,64 +42,23 @@ try:
 except ImportError:
     OCR_AVAILABLE = False
 
-# MySQL imports
-try:
-    import mysql.connector
-    from mysql.connector import Error
-    DB_AVAILABLE = True
-except ImportError:
-    DB_AVAILABLE = False
-
-# Password Hashing imports
-try:
-    import bcrypt
-    BCRYPT_AVAILABLE = True
-except ImportError:
-    BCRYPT_AVAILABLE = False
-
-# Gemini import
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-
-# Encryption import
-try:
-    from cryptography.fernet import Fernet
-    ENCRYPTION_AVAILABLE = True
-except ImportError:
-    ENCRYPTION_AVAILABLE = False
-
 # Security & Utils
 try:
-    import jwt
-    import nh3
     from slowapi import Limiter, _rate_limit_exceeded_handler
     from slowapi.util import get_remote_address
     from slowapi.errors import RateLimitExceeded
-    SECURITY_DEPS_AVAILABLE = True
 except ImportError:
-    SECURITY_DEPS_AVAILABLE = False
-    print("⚠️ Security dependencies missing. Run: pip install pyjwt nh3 slowapi")
+    print("⚠️ Security dependencies missing. Run: pip install slowapi")
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from groq import Groq
-from dotenv import load_dotenv
 from starlette.requests import Request
-
-# Load environment variables
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if DB_AVAILABLE:
-        init_db()
+    init_db()
     
     # Hash in-memory passwords for demo users
     for user in USER_DB:
@@ -94,7 +69,7 @@ async def lifespan(app: FastAPI):
     print(f"✅ Loaded {len(USER_DB)} in-memory users (Admin: {'admin' in USER_DB})")
     yield
 
-app = FastAPI(title="Code Refine", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION, lifespan=lifespan)
 
 # Rate Limiter Setup
 limiter = Limiter(key_func=get_remote_address)
@@ -117,10 +92,11 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    # Cache Prevention for authenticated routes
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    # Smart Caching: Only disable cache for API endpoints
+    if request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     return response
 
 # Serve static assets
@@ -128,149 +104,9 @@ assets_path = Path(__file__).parent.parent / "frontend" / "assets"
 assets_path.mkdir(parents=True, exist_ok=True)
 app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
-# Initialize Groq Client
-api_key = os.getenv("GROQ_API_KEY")
-if not api_key:
-    print("ERROR: GROQ_API_KEY not found in .env file!")
-
-client = Groq(api_key=api_key)
-
-# System-wide Gemini Key (Fallback)
-SYSTEM_GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-if not SYSTEM_GEMINI_KEY:
-    print("WARNING: GEMINI_API_KEY not found in .env file!")
-else:
-    print(f"✅ System Gemini Key loaded successfully")
-
-# --- Password Hashing ---
-def verify_password(plain_password, hashed_password):
-    if not BCRYPT_AVAILABLE:
-        return plain_password == hashed_password
-    try:
-        pwd_bytes = plain_password[:72].encode('utf-8')
-        hashed_bytes = hashed_password.encode('utf-8')
-        return bcrypt.checkpw(pwd_bytes, hashed_bytes)
-    except Exception:
-        return False
-
-def get_password_hash(password):
-    if not BCRYPT_AVAILABLE:
-        return password
-    pwd_bytes = password[:72].encode('utf-8')
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed.decode('utf-8')
-
-# --- Encryption Helpers ---
-if ENCRYPTION_AVAILABLE:
-    # In production, load this from os.getenv("ENCRYPTION_KEY")
-    # For this session, we generate a key. Note: Restarting server invalidates stored encrypted keys in memory.
-    _key = os.getenv("APP_ENCRYPTION_KEY") or Fernet.generate_key()
-    if not os.getenv("APP_ENCRYPTION_KEY"): print("⚠️  WARNING: Using ephemeral encryption key. Stored secrets will be lost on restart.")
-    cipher_suite = Fernet(_key)
-
-def encrypt_secret(secret: str) -> str:
-    if not ENCRYPTION_AVAILABLE or not secret: return secret
-    return cipher_suite.encrypt(secret.encode()).decode()
-
-def decrypt_secret(secret: str) -> str:
-    if not ENCRYPTION_AVAILABLE or not secret: return secret
-    try:
-        return cipher_suite.decrypt(secret.encode()).decode()
-    except:
-        return secret
-
-# --- JWT Configuration ---
-SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-# --- Global Stores ---
-CODE_DATABASE = [] 
-STUDENT_STATS = {}
-ACTIVE_SESSIONS = {}
-COMPANY_POLICIES = ""
-CODE_SNIPPETS = {}  # Store user snippets
-CODE_HISTORY = {}   # Track version history
-USER_ANALYTICS = {} # Track user activities
-USER_SETTINGS = {}  # Store user preferences
-PERFORMANCE_METRICS = {}  # Track API performance
-WEBHOOKS = {}  # Store webhook configurations
-API_RATE_LIMITS = {}  # Track API usage per user
-NEWSLETTER_SUBS = [] # Store newsletter subscriptions
-MAINTENANCE_MODE = False # Global maintenance flag
-GUEST_USAGE = {} # Track guest usage by IP
-GUEST_DAILY_LIMIT = 5 # Max generations per day for guests
-AVAILABLE_MODELS = {  # Available AI models
-    "llama-3.3-70b": {"name": "Llama 3.3 70B", "provider": "Groq", "speed": "Fast", "quality": "Excellent"},
-    "llama-3.1-405b": {"name": "Llama 3.1 405B", "provider": "Groq", "speed": "Slower", "quality": "Best"},
-    "mixtral-8x7b-32768": {"name": "Mixtral 8x7B", "provider": "Groq", "speed": "Very Fast", "quality": "Good"},
-    "gemini-pro": {"name": "Gemini Pro", "provider": "Google", "speed": "Fast", "quality": "Excellent"},
-}
-# In-memory User Database (Replaces hardcoded dict in login)
-admin_pwd = os.getenv("ADMIN_PASSWORD", "password")
-if admin_pwd == "password":
-    print("⚠️  WARNING: Using default admin password. Set ADMIN_PASSWORD in .env for security.")
-
-USER_DB = {
-    "admin": {"password": admin_pwd, "email": "admin@coderefine.ai"}
-}
-
 # Ensure reports directory exists
 REPORTS_DIR = Path(__file__).parent / "reports"
 REPORTS_DIR.mkdir(exist_ok=True)
-
-# --- Database Connection ---
-def get_db_connection():
-    """Establish connection to MySQL database"""
-    if not DB_AVAILABLE:
-        return None
-    try:
-        connection = mysql.connector.connect(
-            host=os.getenv("DB_HOST", "127.0.0.1"),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", "root"),
-            database=os.getenv("DB_NAME", "coderefine")
-        )
-        if connection.is_connected():
-            return connection
-    except Error as e:
-        print(f"Database Warning: {e} (Using in-memory fallback)")
-    return None
-
-def init_db():
-    """Initialize database tables"""
-    if not DB_AVAILABLE:
-        return
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    username VARCHAR(255) NOT NULL UNIQUE,
-                    email VARCHAR(255) NOT NULL UNIQUE,
-                    password_hash VARCHAR(255) NOT NULL,
-                    role VARCHAR(50) DEFAULT 'user',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
-            print("✅ Database initialized: 'users' table ready")
-        except Error as e:
-            print(f"❌ Database Initialization Error: {e}")
-        finally:
-            if conn.is_connected():
-                cursor.close()
-                conn.close()
 
 # --- Core Utility Logic ---
 
@@ -278,21 +114,20 @@ def is_user_admin(username: str) -> bool:
     """Check if a user has admin privileges"""
     if username == "admin": return True
     
-    if DB_AVAILABLE:
-        conn = get_db_connection()
-        if conn:
-            try:
-                cursor = conn.cursor(dictionary=True)
-                cursor.execute("SELECT role FROM users WHERE username = %s", (username,))
-                row = cursor.fetchone()
-                if row and row['role'] == 'admin':
-                    return True
-            except:
-                pass
-            finally:
-                if conn.is_connected():
-                    cursor.close()
-                    conn.close()
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT role FROM users WHERE username = %s", (username,))
+            row = cursor.fetchone()
+            if row and row['role'] == 'admin':
+                return True
+        except:
+            pass
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
     return False
 
 def check_maintenance(user: str):
@@ -311,134 +146,11 @@ def check_guest_limit(request: Request, username: str):
         if now > usage['reset_time']:
             usage = {'count': 0, 'reset_time': now + 86400}
         
-        if usage['count'] >= GUEST_DAILY_LIMIT:
-            raise HTTPException(status_code=403, detail=f"Guest limit reached ({GUEST_DAILY_LIMIT}/day). Please sign up for unlimited access.")
+        if usage['count'] >= 5: # GUEST_DAILY_LIMIT
+            raise HTTPException(status_code=403, detail=f"Guest limit reached (5/day). Please sign up for unlimited access.")
         
         usage['count'] += 1
         GUEST_USAGE[ip] = usage
-
-def sanitize_html(content: str) -> str:
-    """Sanitize HTML content using nh3"""
-    if not SECURITY_DEPS_AVAILABLE: return content
-    allowed_tags = {'h1', 'h2', 'h3', 'h4', 'p', 'pre', 'code', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'b', 'i', 'u', 'span', 'div'}
-    return nh3.clean(content, tags=allowed_tags)
-
-# Lock for thread-safe Gemini configuration
-gemini_lock = threading.Lock()
-
-def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-versatile", gemini_key=None):
-    """Unified helper to call Groq or Gemini"""
-    
-    if "gemini" in model.lower():
-        if not GEMINI_AVAILABLE:
-            return "Error: google-generativeai library not installed. Please install it to use Gemini."
-        
-        # Prioritize user key, then system key
-        final_key = gemini_key or SYSTEM_GEMINI_KEY
-        
-        if not final_key:
-            return "Error: Gemini API Key not found. Please add it in Settings."
-            
-        try:
-            with gemini_lock:
-                genai.configure(api_key=final_key)
-                gemini_model = genai.GenerativeModel("gemini-pro")
-                response = gemini_model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=temp,
-                        max_output_tokens=max_tokens
-                    )
-                )
-            return response.text
-        except Exception as e:
-            print(f"Gemini Error: {e}")
-            return f"Error calling Gemini: {str(e)}"
-
-    try:
-        completion = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": "You are a helpful coding assistant."},
-                      {"role": "user", "content": prompt}],
-            temperature=temp,
-            max_tokens=max_tokens
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        print(f"AI Error: {e}")
-        return "Error: Could not get a response from AI."
-
-def analyze_complexity(code, model="llama-3.3-70b-versatile", gemini_key=None):
-    """AI-powered Big-O analysis"""
-    prompt = f"Analyze the time complexity of this code. Return ONLY the Big-O notation (e.g., O(n)).\nCode:\n{code}"
-    res = get_ai_response(prompt, temp=0.1, max_tokens=20, model=model, gemini_key=gemini_key)
-    match = re.search(r"O\(.*?\)", res)
-    return match.group(0) if match else "O(n)"
-
-def check_plagiarism(code):
-    """Simple similarity check"""
-    if not code or not CODE_DATABASE:
-        CODE_DATABASE.append(code)
-        return "0% (New)"
-    
-    max_sim = 0
-    for old_code in CODE_DATABASE:
-        matches = sum(1 for a, b in zip(code, old_code) if a == b)
-        sim = matches / max(len(code), len(old_code)) if max(len(code), len(old_code)) > 0 else 0
-        max_sim = max(max_sim, sim)
-    
-    CODE_DATABASE.append(code)
-    return f"{round(max_sim * 100, 2)}%"
-def create_balanced_review_prompt(code, user_type):
-    """Create a balanced code review prompt that acknowledges good code"""
-    personas = {
-        "student": """You are a supportive AI Tutor. Analyze this code FAIRLY:
-1. Start by acknowledging what was done WELL
-2. Point out ONLY actual bugs or logical errors (not style preferences)
-3. Suggest improvements with explanations
-4. Give hints for learning
-
-Format with:
-### Strengths (what's good)
-### Issues (only real bugs)
-### Suggestions (improvements)
-
-Code to review:""",
-        "enterprise": """You are a Security Auditor. Review this code for:
-1. ONLY genuine security vulnerabilities (OWASP Top 10)
-2. Compliance issues that matter
-3. NOT minor nitpicks
-
-If code is secure, say "### Strengths - No critical security issues found"
-
-Format with:
-### Critical (severe vulnerabilities only)
-### High (important security issues)
-### Suggestions (improvements)
-
-Code to review:""",
-        "developer": """You are a Senior Developer doing constructive code review. Analyze OBJECTIVELY:
-1. Start with what's done RIGHT
-2. Point out ONLY real bugs, inefficiencies, or architectural issues
-3. Suggest optimizations with reasoning
-4. Be encouraging
-
-Format with:
-### Strengths (good patterns used)
-### Issues (real bugs or performance problems)
-### Suggestions (improvements)
-
-Code to review:"""
-    }
-    
-    persona = personas.get(user_type, personas['developer'])
-    return f"{persona}\n{code}"
-
-def inject_policies(prompt, user_type):
-    """Inject company policies for enterprise users"""
-    if user_type in ["enterprise", "organisation"] and COMPANY_POLICIES:
-        return f"STRICTLY ADHERE TO THE FOLLOWING COMPANY POLICIES:\n{COMPANY_POLICIES}\n\n{prompt}"
-    return prompt
 
 
 # --- API Endpoints ---
@@ -573,7 +285,7 @@ async def login(payload: dict = Body(...)):
             if verify_password(password, user_record["password"]):
                 user_data = {"username": found_key, "email": user_record["email"], "role": "admin" if found_key == "admin" else "user"}
             # Emergency fallback for admin if hashing fails or is mismatched in memory
-            elif found_key == "admin" and password == admin_pwd:
+            elif found_key == "admin" and password == settings.ADMIN_PASSWORD:
                 print("⚠️ Emergency admin login used")
                 user_data = {"username": "admin", "email": "admin@coderefine.ai", "role": "admin"}
 
@@ -749,9 +461,9 @@ async def health():
         "status": "healthy",
         "database": "connected" if get_db_connection() else "in-memory fallback",
         "ocr_available": OCR_AVAILABLE,
-        "gemini_ready": GEMINI_AVAILABLE and bool(SYSTEM_GEMINI_KEY),
+        "gemini_ready": GEMINI_AVAILABLE and bool(settings.GEMINI_API_KEY),
         "model": "llama-3.3-70b-versatile",
-        "version": "2.0.0"
+        "version": settings.VERSION
     }
 
 # --- OCR Endpoint ---
@@ -1111,6 +823,23 @@ async def save_snippet(payload: dict = Body(...)):
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
     
+    # DB Implementation
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO snippets (username, title, code, language) VALUES (%s, %s, %s, %s)",
+                (user, title, code, language)
+            )
+            conn.commit()
+            snippet_id = cursor.lastrowid
+            return {"message": "Snippet saved", "snippet_id": snippet_id}
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
     if user not in CODE_SNIPPETS:
         CODE_SNIPPETS[user] = []
     
@@ -1130,12 +859,44 @@ async def get_snippets(user: str):
     """Get user's saved snippets"""
     if user.lower() == "guest":
         return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
+    
+    # DB Implementation
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT id, title, code, language, created_at FROM snippets WHERE username = %s ORDER BY created_at DESC", (user,))
+            snippets = cursor.fetchall()
+            for s in snippets:
+                if isinstance(s['created_at'], datetime):
+                    s['created_at'] = s['created_at'].isoformat()
+            return {"snippets": snippets, "total": len(snippets)}
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
     snippets = CODE_SNIPPETS.get(user, [])
     return {"snippets": snippets, "total": len(snippets)}
 
 @app.delete("/api/snippets/{user}/{snippet_id}")
 async def delete_snippet(user: str, snippet_id: int):
     """Delete a snippet"""
+    # DB Implementation
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM snippets WHERE id = %s AND username = %s", (snippet_id, user))
+            conn.commit()
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Snippet not found")
+            return {"message": "Snippet deleted"}
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
     if user in CODE_SNIPPETS and 0 <= snippet_id < len(CODE_SNIPPETS[user]):
         CODE_SNIPPETS[user].pop(snippet_id)
         return {"message": "Snippet deleted"}
@@ -1151,6 +912,26 @@ async def save_to_history(payload: dict = Body(...)):
     
     if user.lower() == "guest":
         return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
+
+    # DB Implementation
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(version) FROM history WHERE username = %s", (user,))
+            row = cursor.fetchone()
+            next_version = (row[0] if row and row[0] is not None else 0) + 1
+            
+            cursor.execute(
+                "INSERT INTO history (username, code, action, version) VALUES (%s, %s, %s, %s)",
+                (user, code, action, next_version)
+            )
+            conn.commit()
+            return {"message": "Version saved", "version": next_version}
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
 
     if user not in CODE_HISTORY:
         CODE_HISTORY[user] = []
@@ -1170,6 +951,23 @@ async def get_history(user: str):
     """Get user's code history"""
     if user.lower() == "guest":
         return JSONResponse(status_code=401, content={"error": "auth_required", "redirect": "/login"})
+    
+    # DB Implementation
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT version, code, action, created_at as timestamp FROM history WHERE username = %s ORDER BY version DESC", (user,))
+            history = cursor.fetchall()
+            for h in history:
+                if isinstance(h['timestamp'], datetime):
+                    h['timestamp'] = h['timestamp'].isoformat()
+            return {"history": history, "total_versions": len(history)}
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+
     history = CODE_HISTORY.get(user, [])
     return {"history": history, "total_versions": len(history)}
 
@@ -1747,11 +1545,11 @@ async def get_faq():
 # 13. NEWSLETTER SUBSCRIPTION
 def send_welcome_email_background(email: str):
     """Send welcome email to new subscribers"""
-    smtp_server = os.getenv("SMTP_SERVER")
-    smtp_port = os.getenv("SMTP_PORT")
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    sender_email = os.getenv("SMTP_SENDER_EMAIL", smtp_user)
+    smtp_server = settings.SMTP_SERVER
+    smtp_port = settings.SMTP_PORT
+    smtp_user = settings.SMTP_USER
+    smtp_password = settings.SMTP_PASSWORD
+    sender_email = settings.SMTP_SENDER_EMAIL or smtp_user
 
     if smtp_server and smtp_port and smtp_user and smtp_password:
         try:
@@ -1819,13 +1617,6 @@ async def export_newsletter_csv():
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=subscribers.csv"})
 
 # 14. PWA STATIC FILES
-@app.get("/sw.js", include_in_schema=False)
-async def service_worker():
-    path = Path(__file__).parent.parent / "frontend" / "sw.js"
-    if path.exists():
-        return FileResponse(path, media_type="application/javascript")
-    raise HTTPException(status_code=404, detail="Service Worker not found")
-
 @app.get("/manifest.json", include_in_schema=False)
 async def manifest():
     path = Path(__file__).parent.parent / "frontend" / "manifest.json"
@@ -1834,26 +1625,16 @@ async def manifest():
     raise HTTPException(status_code=404, detail="Manifest not found")
 
 # 14.5 SERVE CORE JS FILES (Root Level)
-@app.get("/main.js", include_in_schema=False)
-async def serve_main_js():
-    path = Path(__file__).parent.parent / "frontend" / "main.js"
-    if path.exists():
-        return FileResponse(path, media_type="application/javascript")
-    raise HTTPException(status_code=404, detail="main.js not found")
-
-@app.get("/utils.js", include_in_schema=False)
-async def serve_utils_js():
-    path = Path(__file__).parent.parent / "frontend" / "utils.js"
-    if path.exists():
-        return FileResponse(path, media_type="application/javascript")
-    raise HTTPException(status_code=404, detail="utils.js not found")
-
-@app.get("/theme.js", include_in_schema=False)
-async def serve_theme_js():
-    path = Path(__file__).parent.parent / "frontend" / "theme.js"
-    if path.exists():
-        return FileResponse(path, media_type="application/javascript")
-    raise HTTPException(status_code=404, detail="theme.js not found")
+@app.get("/{filename}.js", include_in_schema=False)
+async def serve_core_js(filename: str):
+    """Serve core JS files from frontend root (sw, main, utils, theme)"""
+    # Allow specific JS files that are expected in the root
+    allowed = ["sw", "main", "utils", "theme"]
+    if filename in allowed:
+        path = Path(__file__).parent.parent / "frontend" / f"{filename}.js"
+        if path.exists():
+            return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="File not found")
 
 # 15. SYSTEM STATUS
 @app.get("/api/system/status")
@@ -1861,8 +1642,8 @@ async def system_status():
     """Comprehensive system status check"""
     groq_status = "Unknown"
     try:
-        if api_key:
-            client.models.list()
+        if settings.GROQ_API_KEY:
+            # Simple check if key is present, deep check would require import
             groq_status = "Operational"
         else:
             groq_status = "Not Configured (Missing API Key)"
@@ -1871,7 +1652,7 @@ async def system_status():
 
     return {
         "server": "Operational",
-        "version": "2.0.0",
+        "version": settings.VERSION,
         "groq_api": groq_status,
         "storage": {
             "users": len(USER_DB),
@@ -1973,11 +1754,11 @@ async def set_maintenance_status(payload: dict = Body(...)):
 
 def send_email_background(email: str, reset_link: str):
     """Send email in background to prevent blocking the API"""
-    smtp_server = os.getenv("SMTP_SERVER")
-    smtp_port = os.getenv("SMTP_PORT")
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    sender_email = os.getenv("SMTP_SENDER_EMAIL", smtp_user)
+    smtp_server = settings.SMTP_SERVER
+    smtp_port = settings.SMTP_PORT
+    smtp_user = settings.SMTP_USER
+    smtp_password = settings.SMTP_PASSWORD
+    sender_email = settings.SMTP_SENDER_EMAIL or smtp_user
 
     if smtp_server and smtp_port and smtp_user and smtp_password:
         try:
@@ -2027,20 +1808,19 @@ async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Bod
     user_found = False
     
     # Check MySQL
-    if DB_AVAILABLE:
-        conn = get_db_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
-                if cursor.fetchone():
-                    user_found = True
-            except Error as e:
-                print(f"DB Error: {e}")
-            finally:
-                if conn.is_connected():
-                    cursor.close()
-                    conn.close()
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                user_found = True
+        except Error as e:
+            print(f"DB Error: {e}")
+        finally:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
 
     # Check In-Memory
     if not user_found:
@@ -2060,7 +1840,35 @@ async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Bod
 
 # --- Page Routing ---
 
-@app.get("/{page}", response_class=HTMLResponse)
+@app.get("/login")
+async def login_page():
+    path = Path(__file__).parent.parent / "frontend" / "login.html"
+    if path.exists():
+        return FileResponse(path)
+    return HTMLResponse("<h1>Login Page Not Found</h1>", status_code=404)
+
+@app.get("/signup")
+async def signup_page():
+    path = Path(__file__).parent.parent / "frontend" / "signup.html"
+    if path.exists():
+        return FileResponse(path)
+    return HTMLResponse("<h1>Signup Page Not Found</h1>", status_code=404)
+
+@app.get("/register")
+async def register_page():
+    path = Path(__file__).parent.parent / "frontend" / "signup.html"
+    if path.exists():
+        return FileResponse(path)
+    return HTMLResponse("<h1>Signup Page Not Found</h1>", status_code=404)
+
+@app.get("/generate")
+async def generate_page():
+    path = Path(__file__).parent.parent / "frontend" / "generate.html"
+    if path.exists():
+        return FileResponse(path)
+    return HTMLResponse("<h1>Generate Page Not Found</h1>", status_code=404)
+
+@app.get("/{page}")
 async def serve_ui(page: str):
     # Dynamic path finding
     base_path = Path(__file__).parent.parent / "frontend"
@@ -2079,7 +1887,8 @@ async def serve_ui(page: str):
         "404": "404.html",
         "generate": "generate.html",
         "status": "status.html",
-        "signup": "signup.html"
+        "signup": "signup.html",
+        "register": "signup.html"
     }
     
     target_file = file_map.get(page)
@@ -2087,18 +1896,22 @@ async def serve_ui(page: str):
     # If page not found in map, serve 404
     if not target_file:
         path_404 = base_path / "404.html"
-        return HTMLResponse(path_404.read_text(encoding="utf-8"), status_code=404) if path_404.exists() else HTMLResponse("<h1>404: Page Not Found</h1>", status_code=404)
+        if path_404.exists():
+            return FileResponse(path_404, status_code=404)
+        return HTMLResponse("<h1>404: Page Not Found</h1>", status_code=404)
 
     path = base_path / target_file
     
     if path.exists():
-        return path.read_text(encoding="utf-8")
+        return FileResponse(path)
     return HTMLResponse("<h1>404: File Not Found</h1>", status_code=404)
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
     path = Path(__file__).parent.parent / "frontend" / "landing.html"
-    return path.read_text(encoding="utf-8") if path.exists() else "Login Page Not Found"
+    if path.exists():
+        return FileResponse(path)
+    return HTMLResponse("<h1>Landing Page Not Found</h1>", status_code=404)
 
 if __name__ == "__main__":
     import uvicorn

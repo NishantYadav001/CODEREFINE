@@ -119,13 +119,18 @@ const initApp = () => {
     try {
         // --- 1. CONFIGURATION & STATE ---
         const params = new URLSearchParams(window.location.search);
-        const userType = params.get('userType') || 'developer';
-        const studentName = params.get('email') || params.get('username') || 'Guest';
-        const isGuest = studentName === 'Guest' || localStorage.getItem('username') === 'Guest';
+        
+        // Fix: Restore session from localStorage to prevent login loops/crashes on back navigation
+        const storedUserType = localStorage.getItem('userType');
+        const storedUsername = localStorage.getItem('username');
+
+        const userType = params.get('userType') || storedUserType || 'developer';
+        const studentName = params.get('email') || params.get('username') || storedUsername || 'Guest';
+        const isGuest = studentName === 'Guest' || storedUsername === 'Guest';
 
         // Security Check
         const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        if (!token && studentName !== 'Guest') {
+        if (!token && !isGuest) {
             window.location.replace('/login');
             return;
         }

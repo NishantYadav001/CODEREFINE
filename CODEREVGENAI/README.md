@@ -1,266 +1,116 @@
-# Code Refine using FastAPI and Groq
+# Code Refine AI 🚀
 
-An AI-powered code analysis and refactoring tool that uses Groq's Llama 3.3 70B model to review and rewrite code with different personas for various user types.
+**Code Refine AI** is an advanced, AI-powered code review and refactoring tool designed to help developers, students, and organizations improve code quality, security, and performance. Powered by Groq's Llama 3.3 70B model.
 
-## Features
+## ✨ Features
 
-✨ **Multi-User Modes:**
-- **Developer Mode** - Standard code optimization and improvements
-- **Student Mode** - Educational feedback with hints and explanations
-- **Organisation Mode** - Team-wide consistency and architectural review
-- **Enterprise Mode** - Security-focused audit and compliance checking
+### Core Capabilities
+- **AI Code Review**: Comprehensive analysis identifying critical bugs, security vulnerabilities, and logic errors.
+- **Auto-Refactoring**: Intelligent code rewriting to improve performance and readability.
+- **Multi-Persona AI**:
+  - 👨‍💻 **Developer**: Focuses on optimization and best practices.
+  - 🎓 **Student**: Provides learning-oriented feedback and explanations.
+  - 🏢 **Enterprise**: Audits for security (OWASP) and compliance.
+- **Plagiarism Detection**: Checks student submissions against a local database.
 
-🎯 **Core Capabilities:**
-- Real-time AI code review with Groq API
-- Automatic code rewriting and refactoring
-- Plagiarism detection for student submissions
-- Policy-based compliance checking (Enterprise)
-- Code extraction from images (OCR)
-- Student progress tracking and analytics
-- Student dashboard for monitoring
+### Advanced Tools
+- **Code Diff Viewer**: Side-by-side comparison of original vs. refactored code.
+- **Security Scanner**: Deep dive into potential vulnerabilities.
+- **Unit Test Generator**: Auto-generates tests (Pytest/Jest).
+- **Documentation Generator**: Creates docstrings and comments automatically.
+- **Language Detection**: Auto-identifies programming languages.
 
-🚀 **Technology Stack:**
-- **Backend:** FastAPI + Uvicorn
-- **Frontend:** HTML5 + Tailwind CSS + JavaScript
-- **AI Engine:** Groq API (Llama 3.3 70B)
-- **Database:** In-memory (can be upgraded to persistent storage)
+### UI/UX
+- **Dashboard**: Analytics for teachers/admins to track usage.
+- **Dark/Light Mode**: Fully themable interface.
+- **Real-time Feedback**: Toast notifications and progress tracking.
+- **Smart Editor**: Drag & drop file upload, keyboard shortcuts (Ctrl+Enter), and syntax highlighting.
+- **History & Snippets**: Save and manage code versions.
 
-## Prerequisites
+## 🛠️ Tech Stack
 
+- **Backend**: FastAPI (Python), Uvicorn
+- **AI Engine**: Groq API (Llama 3.3 70B)
+- **Frontend**: HTML5, Tailwind CSS, Vanilla JS
+- **Database**: In-memory (SQLite/MySQL ready structure)
+- **Security**: JWT Authentication, CORS, Input Validation
+
+## 🚀 Getting Started
+
+### Prerequisites
 - Python 3.9+
-- Groq API Key (get it from [console.groq.com](https://console.groq.com))
-- Modern web browser
+- Groq API Key (Get one at [console.groq.com](https://console.groq.com))
 
-## Quick Start
+### Installation
 
-### Option 1: Using PowerShell (Windows)
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd CODEREVGENAI
+   ```
 
-```powershell
-.\start.ps1
-```
+2. **Set up Environment**
+   Create a `.env` file in `backend/` or root:
+   ```env
+   GROQ_API_KEY=your_api_key_here
+   SECRET_KEY=your_secret_key
+   ```
 
-### Option 2: Using Bash (Mac/Linux)
+3. **Install Dependencies**
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
 
-```bash
-chmod +x start.sh
-./start.sh
-```
+4. **Run the Application**
+   
+   **Windows (PowerShell):**
+   ```powershell
+   .\start.ps1
+   ```
+   
+   **Linux/Mac:**
+   ```bash
+   ./start.sh
+   ```
 
-### Option 3: Manual Setup
+   Or manually:
+   ```bash
+   python backend/main.py
+   ```
 
-```bash
-# Navigate to backend directory
-cd backend
+## 📖 Usage
 
-# Create virtual environment
-python -m venv venv
+1. Open your browser to `http://127.0.0.1:8000/login`.
+2. **Login** with demo credentials:
+   - **Admin**: `admin` / `password`
+   - **Student**: `student1` / `password`
+   - **Teacher**: `teacher` / `password`
+3. Navigate to the **App** to start reviewing code.
+4. Check the **Dashboard** for analytics.
 
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-# Edit .env file and add your GROQ_API_KEY
-
-# Run server
-python main.py
-```
-
-## Access the Application
-
-Once the server is running:
-
-1. **Login Page:** http://127.0.0.1:8000/login
-2. **Main Tool:** http://127.0.0.1:8000/app
-3. **Student Dashboard:** http://127.0.0.1:8000/dashboard
-4. **API Documentation:** http://127.0.0.1:8000/docs
-
-## Demo Credentials
-
-```
-Username: admin        OR  student1      OR  teacher
-Password: password         password          password
-```
-
-## Project Structure
+## 📂 Project Structure
 
 ```
 CODEREVGENAI/
 ├── backend/
-│   ├── main.py                 # FastAPI application
-│   ├── requirements.txt         # Python dependencies
-│   ├── .env                     # Environment variables (GROQ_API_KEY)
-│   └── __init__.py
+│   ├── main.py           # Core application logic
+│   ├── ai_service.py     # AI integration (Groq/Gemini)
+│   ├── database.py       # Database handling
+│   └── ...
 ├── frontend/
-│   ├── login.html              # Authentication page
-│   ├── index.html              # Main tool interface
-│   └── dashboard.html          # Teacher analytics dashboard
-├── start.ps1                   # PowerShell quick start script
-├── start.sh                    # Bash quick start script
-└── FIXES_SUMMARY.md           # Detailed fix documentation
+│   ├── index.html        # Main tool interface
+│   ├── dashboard.html    # Analytics dashboard
+│   ├── assets/           # Static assets
+│   └── ...
+├── README.md             # Documentation
+└── start.ps1             # Startup script
 ```
 
-## API Endpoints
+## 🛡️ API Documentation
 
-### Authentication
-- `POST /api/login` - Login with username/password
-- `POST /api/logout` - Logout and clear session
-- `GET /api/health` - Server health check
-
-### Code Analysis
-- `POST /api/review` - Review code with AI
-- `POST /api/rewrite` - Rewrite code with AI
-- `POST /api/ocr` - Extract code from images
-- `POST /api/upload-policy` - Upload company policies
-
-### Dashboard
-- `GET /api/dashboard-data` - Get analytics
-- `POST /api/reset-plagiarism` - Clear plagiarism database
-
-## Configuration
-
-### Environment Variables (.env)
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-Get your API key from: https://console.groq.com/keys
-
-## How It Works
-
-### Code Review Flow
-1. User logs in with credentials
-2. Selects a user type (determines AI persona)
-3. Pastes or uploads code
-4. AI analyzes code using Groq's Llama 3.3 70B
-5. Results show: critical issues, high/medium/low priority items
-6. For students: plagiarism check is performed
-
-### Code Rewrite Flow
-1. User requests code rewriting
-2. AI rewrites the code based on persona
-3. Original and rewritten versions displayed side-by-side
-4. User can copy the rewritten code
-
-## Customization
-
-### Add New User Types
-Edit `personas` dictionary in `main.py`:
-
-```python
-personas = {
-    "your_type": "Your custom AI persona description...",
-    # ... more types
-}
-```
-
-### Add Demo Users
-Edit `DEMO_USERS` in `main.py`:
-
-```python
-DEMO_USERS = {
-    "your_username": "your_password",
-    # ... more users
-}
-```
-
-### Change Server Port
-In `main.py`, modify the uvicorn.run call:
-
-```python
-uvicorn.run(app, host="127.0.0.1", port=8080)  # Change 8000 to 8080
-```
-
-## Troubleshooting
-
-### Issue: "GROQ_API_KEY not found"
-- Make sure you have created `.env` file in `backend/` directory
-- Add your API key: `GROQ_API_KEY=your_key_here`
-
-### Issue: "Address already in use"
-- Port 8000 is already in use
-- Change to different port: `uvicorn.run(app, host="127.0.0.1", port=8001)`
-
-### Issue: "ModuleNotFoundError"
-- Activate virtual environment first
-- Run: `pip install -r requirements.txt`
-
-### Issue: Login fails
-- Use demo credentials: admin/password
-- Or add new users in DEMO_USERS dictionary
-
-## Advanced Features (Optional)
-
-### Re-enable ML-Based Plagiarism Detection
-If you want better plagiarism detection using embeddings:
-
-```bash
-pip install sentence-transformers scikit-learn
-```
-
-Then uncomment the embedding code in `main.py`.
-
-### Enable OCR for Image Code Extraction
-To extract code from images:
-
-1. Install Tesseract-OCR from: https://github.com/UB-Mannheim/tesseract/wiki
-2. Install Python package: `pip install pytesseract pillow`
-3. Update pytesseract path in main.py if needed
-
-## Performance Tips
-
-- Keep the frontend open while using the tool
-- For long code (>5000 lines), split into smaller chunks
-- Clear plagiarism database periodically: `/api/reset-plagiarism`
-- Monitor dashboard for student activity
-
-## Security Considerations
-
-⚠️ **Note:** This is a demo application. For production use:
-- Implement proper authentication (JWT tokens)
-- Use a proper database (PostgreSQL, MongoDB)
-- Add rate limiting
-- Implement HTTPS/TLS
-- Add input validation and sanitization
-- Use environment variables for all secrets
-- Implement proper error handling
-
-## Contributing
-
-Feel free to enhance this project:
-- Add new user personas
-- Implement database persistence
-- Add more code analysis features
-- Improve UI/UX
-- Add more languages support
-
-## License
-
-Open source - feel free to use and modify!
-
-## Support
-
-For issues or questions:
-1. Check the FIXES_SUMMARY.md for recent fixes
-2. Review API documentation at http://127.0.0.1:8000/docs
-3. Check browser console for frontend errors
-4. Check terminal output for backend errors
-
-## Resources
-
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Groq API Documentation](https://console.groq.com/docs/speech-text)
-- [Uvicorn Documentation](https://www.uvicorn.org/)
-- [Groq Models](https://console.groq.com/docs/models)
+Once the server is running, full interactive API documentation is available at:
+- **Swagger UI**: `http://127.0.0.1:8000/docs`
+- **ReDoc**: `http://127.0.0.1:8000/redoc`
 
 ---
-
-**Status:** ✅ Server Running & Fully Functional
-
-Made with ❤️ using FastAPI and Groq
+*Version 2.0.0*
