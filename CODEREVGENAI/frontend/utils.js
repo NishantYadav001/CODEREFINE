@@ -15,6 +15,30 @@ export const showToast = (message, type = 'info', duration = 3000) => {
     }, duration);
 };
 
+export const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+};
+
+export const setLoading = (id, isLoading, text = null) => {
+    const el = get(id);
+    if (!el) return;
+    
+    if (isLoading) {
+        el.dataset.originalContent = el.innerHTML;
+        el.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ${text || ''}`;
+        el.disabled = true;
+        el.classList.add('opacity-70', 'cursor-not-allowed');
+    } else {
+        el.innerHTML = el.dataset.originalContent || el.innerHTML;
+        el.disabled = false;
+        el.classList.remove('opacity-70', 'cursor-not-allowed');
+    }
+};
+
 export const setClick = (id, handler) => {
     const el = get(id);
     if (el) {

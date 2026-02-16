@@ -22,9 +22,9 @@ def get_ai_response(prompt, temp=0.3, max_tokens=2000, model="llama-3.3-70b-vers
         if not GEMINI_AVAILABLE:
             return "Error: google-generativeai library not installed."
         
-        final_key = gemini_key or settings.GEMINI_API_KEY
+        final_key = gemini_key or getattr(settings, "GEMINI_API_KEY", None)
         if not final_key:
-            return "Error: Gemini API Key not found."
+            return "Error: Gemini API Key not found. Please set it in Settings or .env file."
             
         try:
             with gemini_lock:

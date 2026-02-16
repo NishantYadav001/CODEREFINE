@@ -1,41 +1,11 @@
-import { get, showToast, setClick, setChange } from './utils.js';
+import { get, showToast, setClick, setChange, debounce, setLoading } from './utils.js';
+import { api } from './api.js';
 
 // Global error handler for debugging
 window.onerror = function(msg, url, line, col, error) {
     console.error("❌ Global Error:", msg, "\nLine:", line, "\nError:", error);
     return false;
 };
-
-// Security: Handle Browser Back/Forward Cache (BFCache)
-window.addEventListener('pageshow', (event) => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const params = new URLSearchParams(window.location.search);
-    const username = localStorage.getItem('username');
-    const isGuest = username === 'Guest' || params.get('username') === 'Guest';
-    
-    // Security: Back-Button Protection
-    // If user is not a guest and has no token (logged out), but tries to access app
-    if (!token && !isGuest && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/signup') && !window.location.pathname.includes('/landing')) {
-        if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
-            showToast("Session ended. Please log in to continue.", "error");
-            setTimeout(() => window.location.replace('/login'), 1500);
-            return;
-        }
-        window.location.replace('/login'); 
-    }
-});
-
-// Security: Popstate Listener for Back Button
-window.addEventListener('popstate', () => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const username = localStorage.getItem('username') || sessionStorage.getItem('username');
-    const isGuest = username === 'Guest';
-    
-    if (!token && !isGuest && !window.location.pathname.includes('/login')) {
-        alert("Session Expired: Please log in to continue.");
-        window.location.replace('/login');
-    }
-});
 
 // Initialize application when DOM is ready
 const initApp = () => {
@@ -112,7 +82,7 @@ const initApp = () => {
     }
     
     // Fetch Piston Runtimes
-    fetch('https://emkc.org/api/v2/piston/runtimes').then(r => r.json()).then(data => window.pistonRuntimes = data);
+    api.get('https://emkc.org/api/v2/piston/runtimes').then(data => window.pistonRuntimes = data).catch(console.error);
 
     console.log("🚀 Code Refine: Initializing...");
 
@@ -120,20 +90,13 @@ const initApp = () => {
         // --- 1. CONFIGURATION & STATE ---
         const params = new URLSearchParams(window.location.search);
         
-        // Fix: Restore session from localStorage to prevent login loops/crashes on back navigation
-        const storedUserType = localStorage.getItem('userType');
-        const storedUsername = localStorage.getItem('username');
+        // Fix: Restore session from storage (local or session) to prevent login loops/crashes
+        const storedUserType = localStorage.getItem('userType') || sessionStorage.getItem('userType');
+        const storedUsername = localStorage.getItem('username') || sessionStorage.getItem('username');
 
         const userType = params.get('userType') || storedUserType || 'developer';
         const studentName = params.get('email') || params.get('username') || storedUsername || 'Guest';
         const isGuest = studentName === 'Guest' || storedUsername === 'Guest';
-
-        // Security Check
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        if (!token && !isGuest) {
-            window.location.replace('/login');
-            return;
-        }
 
         const modes = {
             'student': { title: 'AI DEBUGGER', sub: 'STUDENT Edition', badge: 'Student' },
@@ -154,9 +117,6 @@ const initApp = () => {
 
         // Guest Mode UI Adjustments
         if (isGuest) {
-            if (get('guest-nav')) get('guest-nav').classList.remove('hidden');
-            if (get('user-nav')) get('user-nav').classList.add('hidden');
-            
             // Disable interactive features for Guests with Tooltip
             const restrictedBtns = ['saveSnippetBtn', 'saveGithubBtn', 'historyBtn', 'generateTestsBtn', 'securityScanBtn', 'refactorSuggestionsBtn', 'generateDocsBtn'];
             restrictedBtns.forEach(id => {
@@ -273,27 +233,21 @@ const initApp = () => {
                     </div>`;
             }
 
+            const btnId = action === 'review' ? 'reviewBtn' : 'fixBtn';
+            setLoading(btnId, true, action === 'review' ? 'Reviewing...' : 'Rewriting...');
+
             try {
                 const endpoint = action === 'review' ? 'review' : 'rewrite';
                 const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
-                const response = await fetch(`/api/${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code: code,
-                        language: language,
-                        user_type: userType,
-                        student_name: studentName,
-                        focus_areas: focusAreas,
-                        model: model
-                    })
+                
+                const data = await api.post(`/api/${endpoint}`, {
+                    code: code,
+                    language: language,
+                    user_type: userType,
+                    student_name: studentName,
+                    focus_areas: focusAreas,
+                    model: model
                 });
-
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.detail || "Server Error: " + response.status);
-                }
-                const data = await response.json();
 
                 // Update Stats
                 if (get('critical-count')) get('critical-count').innerText = data.stats?.critical || 0;
@@ -349,6 +303,8 @@ const initApp = () => {
                 else if (msg.includes("429")) msg = "Rate limit exceeded. Slow down.";
                 else if (msg.includes("500")) msg = "Server error. Try again later.";
                 showToast(msg, "error");
+            } finally {
+                setLoading(btnId, false);
             }
         }
 
@@ -370,6 +326,7 @@ const initApp = () => {
             setTimeout(() => terminalContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 
             terminalOutput.innerHTML = '<span class="animate-pulse text-yellow-400">⏳ Compiling and executing...</span>';
+            setLoading('runCodeBtn', true, 'Running...');
 
             let lang = 'python';
             if (window.monacoEditor) {
@@ -388,16 +345,12 @@ const initApp = () => {
             const escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
             try {
-                const res = await fetch('https://emkc.org/api/v2/piston/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        language: lang,
-                        version: version,
-                        files: [{ content: code }]
-                    })
+                // Use backend proxy to avoid CORS/Mixed Content issues on deployment
+                const data = await api.post('/api/run', {
+                    code: code,
+                    language: lang,
+                    version: version
                 });
-                const data = await res.json();
                 
                 if (data.run) {
                     let output = data.run.stdout || "";
@@ -411,6 +364,8 @@ const initApp = () => {
                 }
             } catch (e) {
                 terminalOutput.innerHTML = `<span class="text-red-400">API Error: ${e.message}</span>`;
+            } finally {
+                setLoading('runCodeBtn', false);
             }
         }
 
@@ -441,22 +396,13 @@ const initApp = () => {
                     const modelSelector = get('modelSelectorAnalysis') || get('globalModelSelector');
                     const model = modelSelector ? modelSelector.value : 'llama-3.3-70b';
                     
-                    const response = await fetch(`/api/generate`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: `Format the following ${lang} code to follow standard style guidelines (e.g. PEP8 for Python). Return ONLY the formatted code. Do not use markdown blocks.\n\nCode:\n${code}`,
-                            language: lang,
-                            user_type: "developer",
-                            model: model
-                        })
+                    const data = await api.post('/api/generate', {
+                        prompt: `Format the following ${lang} code to follow standard style guidelines (e.g. PEP8 for Python). Return ONLY the formatted code. Do not use markdown blocks.\n\nCode:\n${code}`,
+                        language: lang,
+                        user_type: "developer",
+                        model: model
                     });
 
-                    if (!response.ok) {
-                        const errData = await response.json().catch(() => ({}));
-                        throw new Error(errData.detail || "AI Formatting failed");
-                    }
-                    const data = await response.json();
                     let formatted = data.generated_code || "";
                     
                     // Clean up markdown if present
@@ -486,22 +432,13 @@ const initApp = () => {
                 const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                 const lang = window.monacoEditor.getModel().getLanguageId();
                 
-                const response = await fetch(`/api/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: `Minify the following ${lang} code. Remove all unnecessary whitespace, newlines, and comments to make it as compact as possible while preserving functionality. Return ONLY the minified code. Do not use markdown blocks.\n\nCode:\n${code}`,
-                        language: lang,
-                        user_type: "developer",
-                        model: model
-                    })
+                const data = await api.post('/api/generate', {
+                    prompt: `Minify the following ${lang} code. Remove all unnecessary whitespace, newlines, and comments to make it as compact as possible while preserving functionality. Return ONLY the minified code. Do not use markdown blocks.\n\nCode:\n${code}`,
+                    language: lang,
+                    user_type: "developer",
+                    model: model
                 });
 
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.detail || "Minification failed");
-                }
-                const data = await response.json();
                 let minified = data.generated_code || "";
                 
                 minified = minified.replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
@@ -535,18 +472,13 @@ const initApp = () => {
                 const prompt = "Generate a Mermaid.js flowchart (graph TD) representing the logic of this code. Return ONLY the mermaid code inside a markdown block (```mermaid ... ```). Do not explain.";
                 const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                 
-                const response = await fetch(`/api/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: `${prompt}\n\nCode:\n${code}`,
-                        language: "mermaid",
-                        user_type: "developer",
-                        model: model
-                    })
+                const data = await api.post('/api/generate', {
+                    prompt: `${prompt}\n\nCode:\n${code}`,
+                    language: "mermaid",
+                    user_type: "developer",
+                    model: model
                 });
                 
-                const data = await response.json();
                 let mermaidCode = data.generated_code || "";
                 
                 mermaidCode = mermaidCode.replace(/```mermaid/g, '').replace(/```/g, '').trim();
@@ -614,17 +546,12 @@ const initApp = () => {
                     const code = window.monacoEditor ? window.monacoEditor.getValue() : "";
                     const model = get('globalModelSelector') ? get('globalModelSelector').value : 'llama-3.3-70b';
                     
-                    const res = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: `Context Code:\n${code}\n\nUser Question: ${msg}\n\nAnswer the question based on the code context. Keep it concise.`,
-                            language: "markdown",
-                            user_type: "developer",
-                            model: model
-                        })
+                    const data = await api.post('/api/generate', {
+                        prompt: `Context Code:\n${code}\n\nUser Question: ${msg}\n\nAnswer the question based on the code context. Keep it concise.`,
+                        language: "markdown",
+                        user_type: "developer",
+                        model: model
                     });
-                    const data = await res.json();
                     const aiMsg = data.generated_code || "I couldn't generate a response.";
                     
                     document.getElementById(loadingId).remove();
@@ -1103,7 +1030,7 @@ const initApp = () => {
         // Search
         const searchBox = get('search-results');
         if (searchBox) {
-            searchBox.oninput = () => {
+            searchBox.oninput = debounce(() => {
                 const query = searchBox.value.toLowerCase();
                 const feedback = get('reviewFeedback');
                 if (!feedback) return;
@@ -1118,7 +1045,7 @@ const initApp = () => {
                 } else {
                     feedback.classList.remove('search-highlight');
                 }
-            };
+            }, 300);
         }
 
         // Drag & Drop
@@ -1206,12 +1133,6 @@ const initApp = () => {
                 else if(transcript.includes("clear")) get('clearEditorBtn').click();
             }
         });
-
-        // Logout Function
-        window.logout = function() {
-            localStorage.clear();
-            window.location.replace('/login');
-        };
 
         console.log("✅ Code Refine: Initialization Complete");
 

@@ -4,6 +4,7 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/backend
 
 # Set working directory to /app
 WORKDIR /app
@@ -11,9 +12,12 @@ WORKDIR /app
 # Install system dependencies
 # tesseract-ocr: for OCR features
 # curl: for healthchecks
+# libgl1 & libglib2.0-0: required for image processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     tesseract-ocr \
+    libgl1 \
+    libglib2.0-0 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

@@ -170,7 +170,9 @@ async def generate_code(request: Request, payload: dict = Body(...)):
     gemini_key = None
     if "gemini" in model_key:
         user_settings = USER_SETTINGS.get(username, {})
-        gemini_key = decrypt_secret(user_settings.get("gemini_key"))
+        encrypted_key = user_settings.get("gemini_key")
+        if encrypted_key:
+            gemini_key = decrypt_secret(encrypted_key)
 
     instr = {
         "student": "AI Tutor: simple, commented code.",
@@ -191,6 +193,33 @@ async def generate_code(request: Request, payload: dict = Body(...)):
     match = re.search(r"```(?:\w+)?\n([\s\S]+?)\n```", gen_text)
     return {"generated_code": match.group(1) if match else gen_text.strip()}
 
+@app.post("/api/run")
+@limiter.limit("10/minute")
+async def run_code(request: Request, payload: dict = Body(...)):
+    """Execute code using Piston API (Proxy)"""
+    code = payload.get("code", "")
+    language = payload.get("language", "python")
+    version = payload.get("version", "*")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    
+    # Piston API URL
+    piston_url = "https://emkc.org/api/v2/piston/execute"
+    
+    data = {
+        "language": language,
+        "version": version,
+        "files": [{"content": code}]
+    }
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(piston_url, json=data, timeout=15.0)
+            return response.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Execution service unavailable: {str(e)}")
+
 @app.post("/api/review")
 @app.post("/api/rewrite")
 @limiter.limit("10/minute")
@@ -209,7 +238,9 @@ async def process_code(request: Request, payload: dict = Body(...)):
     gemini_key = None
     if "gemini" in model_key:
         user_settings = USER_SETTINGS.get(u_name, {})
-        gemini_key = decrypt_secret(user_settings.get("gemini_key"))
+        encrypted_key = user_settings.get("gemini_key")
+        if encrypted_key:
+            gemini_key = decrypt_secret(encrypted_key)
         model_id = "gemini-pro"
     else:
         model_id = "llama-3.3-70b-versatile" if "3.3" in model_key else "llama-3.1-405b-reasoning" if "405" in model_key else "mixtral-8x7b-32768"
