@@ -47,8 +47,18 @@ try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
     from slowapi.util import get_remote_address
     from slowapi.errors import RateLimitExceeded
+    
+    # Initialize Limiter here to ensure it exists
+    limiter = Limiter(key_func=get_remote_address)
 except ImportError:
     print("⚠️ Security dependencies missing. Run: pip install slowapi")
+    # Fallback Mock Limiter to prevent crash
+    class MockLimiter:
+        def limit(self, limit_value):
+            return lambda func: func
+    limiter = MockLimiter()
+    RateLimitExceeded = Exception # Dummy exception
+    _rate_limit_exceeded_handler = None
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Body, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,9 +82,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION, lifespan=lifespan)
 
 # Rate Limiter Setup
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+if _rate_limit_exceeded_handler:
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
@@ -1052,25 +1062,6 @@ async def get_global_analytics():
         "most_used_language": max(all_languages, key=all_languages.get) if all_languages else "N/A"
     }
 
-@app.get("/api/analytics/dashboard/global")
-async def get_global_analytics():
-    """Get global analytics for admin dashboard"""
-    total_reviews = sum(a.get("reviews", 0) for a in USER_ANALYTICS.values())
-    total_generations = sum(a.get("generations", 0) for a in USER_ANALYTICS.values())
-    all_languages = {}
-    
-    for analytics in USER_ANALYTICS.values():
-        for lang, count in analytics.get("languages", {}).items():
-            all_languages[lang] = all_languages.get(lang, 0) + count
-    
-    return {
-        "total_users": len(USER_ANALYTICS),
-        "total_reviews": total_reviews,
-        "total_generations": total_generations,
-        "languages_used": all_languages,
-        "most_used_language": max(all_languages, key=all_languages.get) if all_languages else "N/A"
-    }
-
 # ========== STAGE 3: ADVANCED FEATURES ==========
 
 # 1. PERFORMANCE METRICS ENDPOINT
@@ -1534,6 +1525,7 @@ async def test_gemini_connection(payload: dict = Body(...)):
          raise HTTPException(status_code=400, detail="Gemini library not installed")
 
     try:
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-pro")
         response = model.generate_content("Hello, just checking connection.")
@@ -1660,7 +1652,7 @@ async def manifest():
 async def serve_core_js(filename: str):
     """Serve core JS files from frontend root (sw, main, utils, theme)"""
     # Allow specific JS files that are expected in the root
-    allowed = ["sw", "main", "utils", "theme"]
+    allowed = ["sw", "main", "utils", "theme", "api"]
     if filename in allowed:
         path = Path(__file__).parent.parent / "frontend" / f"{filename}.js"
         if path.exists():
@@ -1830,7 +1822,7 @@ def send_email_background(email: str, reset_link: str):
         print(f"📧 [SIMULATION] SMTP not configured. Link: {reset_link}")
 
 @app.post("/api/forgot-password")
-async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+async def forgot_password(request: Request, background_tasks: BackgroundTasks, payload: dict = Body(...)):
     """Initiate password reset flow (Real Email via Background Task)"""
     email = payload.get("email")
     if not email:
@@ -1862,7 +1854,8 @@ async def forgot_password(background_tasks: BackgroundTasks, payload: dict = Bod
     
     if user_found:
         reset_token = hashlib.sha256(f"{email}{datetime.now()}".encode()).hexdigest()[:16]
-        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
+        base_url = str(request.base_url).rstrip("/")
+        reset_link = f"{base_url}/reset-password?token={reset_token}"
         
         # Send email in background
         background_tasks.add_task(send_email_background, email, reset_link)

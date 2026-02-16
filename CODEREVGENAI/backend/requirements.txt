@@ -12,4 +12,7 @@ Pillow
 pytesseract
 google-generativeai
 passlib[bcrypt]
-python-jose[cryptography]
+PyJWT
+aiofiles
+nh3
+cryptography
