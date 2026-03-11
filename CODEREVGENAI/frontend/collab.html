@@ -88,6 +88,18 @@
 
         connect();
     </script>
+    <script src="router.js"></script>
+    <script src="routing-utils.js"></script>
     <script src="/assets/theme.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.router = new Router();
+            await window.router.init();
+            if (!window.router.isAuthenticated()) {
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
 </body>
+
 </html>

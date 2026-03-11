@@ -1,45 +1,150 @@
+# ════════════════════════════════════════════════════════════════════
+# CODEREFINE - Docker Compose Configuration
+# ════════════════════════════════════════════════════════════════════
+# Development & Production Setup for CodeRefine AI Platform
+#
+# Usage:
+#   Development:  docker-compose up
+#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+#   Detached:     docker-compose up -d
+#   Cleanup:      docker-compose down -v
+# ════════════════════════════════════════════════════════════════════
+
 version: '3.8'
 
 services:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # MAIN APPLICATION - FastAPI Backend
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: coderefine_app
+    restart: always
     ports:
-      - "8000:8000"
+      - "8000:8000"  # FastAPI application
+    environment:
+      # Database Configuration
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-coderefine}
+      - DB_PASSWORD=${DB_PASSWORD:-secure_password}
+      - DB_NAME=${DB_NAME:-coderefine}
+      
+      # API Keys & Security
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-password}
+      
+      # Application Settings
+      - ENVIRONMENT=development
+      - DEBUG=true
+      
+      # CORS Configuration
+      - ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000
+    
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DB_HOST=db
-      - DB_USER=coderefine
-      - DB_PASSWORD=secure_password
-      - DB_NAME=coderefine_db
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
+    
     volumes:
-      # Mount source code for development (hot reload)
+      # Source code mounting for development (hot reload)
       - ./backend:/app/backend
       - ./frontend:/app/frontend
-    restart: always
+      # Persistent logs
+      - ./logs:/app/logs
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - coderefine_network
 
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # DATABASE - MySQL 8.0
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   db:
     image: mysql:8.0
-    container_name: coderefine
+    container_name: coderefine_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD=root
-      MYSQL_DATABASE=coderefine
-      MYSQL_USER=root
-      MYSQL_PASSWORD=root
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-coderefine}
+      MYSQL_USER: ${DB_USER:-coderefine}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secure_password}
+    
     ports:
-      - "127.0.0.1:3306"
+      # Only expose to localhost for security
+      - "127.0.0.1:3306:3306"
+    
     volumes:
-      - db_data:/var/lib/mysql
+      # Persistent database storage
+      - mysql_data:/var/lib/mysql
+      # Custom initialization scripts (optional)
+      # - ./init-scripts:/docker-entrypoint-initdb.d
+    
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    
+    networks:
+      - coderefine_network
 
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # OPTIONAL: Redis Cache Layer
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: coderefine_redis
+  #   restart: always
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #   networks:
+  #     - coderefine_network
+
+# ════════════════════════════════════════════════════════════════════
+# VOLUMES - Persistent Storage
+# ════════════════════════════════════════════════════════════════════
 volumes:
-  db_data:
+  mysql_data:
+    driver: local
+  # redis_data:
+  #   driver: local
+
+# ════════════════════════════════════════════════════════════════════
+# NETWORKS - Service Communication
+# ════════════════════════════════════════════════════════════════════
+networks:
+  coderefine_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ════════════════════════════════════════════════════════════════════
+# NOTES FOR USERS
+# ════════════════════════════════════════════════════════════════════
+# 1. Set environment variables in .env file before running
+# 2. Access the application at: http://localhost:8000
+# 3. Database credentials must be secure in production
+# 4. Uncomment Redis service if caching is needed
+# 5. View logs: docker-compose logs -f app
+# 6. Access database: mysql -h 127.0.0.1 -u coderefine -p
+# ════════════════════════════════════════════════════════════════════

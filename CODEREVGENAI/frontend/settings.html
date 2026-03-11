@@ -8,36 +8,43 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/assets/styles.css">
 </head>
-<body class="bg-slate-900 text-white font-sans">
+<body class="min-h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);">
 
-    <!-- Navbar -->
-    <nav class="bg-slate-800 border-b border-slate-700 p-4">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-cog text-blue-500 text-2xl"></i>
-                <span class="text-xl font-bold">Settings</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <button id="theme-toggle" class="p-2 rounded hover:bg-gray-700 transition-colors">
-                    <i class="fas fa-moon text-yellow-400"></i>
-                </button>
-            <a href="/profile" class="text-gray-300 hover:text-white">Profile</a>
-            <a href="/app" class="text-gray-300 hover:text-white">Back to Editor</a>
+    <!-- Modern Navigation -->
+    <nav class="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-cog text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">Settings</h1>
+                        <p class="text-xs text-gray-400">Global Preferences</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="theme-toggle" class="btn-icon">
+                        <i class="fas fa-moon text-yellow-400"></i>
+                    </button>
+                    <a href="/profile" class="btn-secondary btn-sm">Profile</a>
+                    <a href="/app" class="btn-secondary btn-sm">Back to Editor</a>
+                </div>
             </div>
         </div>
     </nav>
 
-    <div class="container mx-auto p-8 max-w-2xl">
-        <div class="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-8">
-            <h2 class="text-2xl font-bold mb-6 border-b border-slate-700 pb-4">Global Preferences</h2>
+    <div class="container mx-auto px-6 py-8 max-w-3xl">
+        <div class="card">
+            <h2 class="text-3xl font-bold mb-8 text-white pb-4 border-b border-white/10">Global Preferences</h2>
             
             <form id="settings-form" class="space-y-6">
                 
                 <!-- AI Model Preference -->
-                <div>
-                    <label class="block text-gray-400 mb-2 font-bold">Default AI Model</label>
-                    <p class="text-xs text-gray-500 mb-2">Select the model used for code generation and reviews.</p>
-                    <select id="default-model" class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                <div class="form-group">
+                    <label class="form-label">Default AI Model</label>
+                    <p class="text-xs text-gray-400 mb-3">Select the model used for code generation and reviews.</p>
+                    <select id="default-model" class="form-input">
                         <option value="llama-3.3-70b">Llama 3.3 70B (Balanced)</option>
                         <option value="llama-3.1-405b">Llama 3.1 405B (High Quality)</option>
                         <option value="mixtral-8x7b-32768">Mixtral 8x7B (Fastest)</option>
@@ -46,9 +53,9 @@
                 </div>
 
                 <!-- Appearance -->
-                <div>
-                    <label class="block text-gray-400 mb-2 font-bold">Theme Preference</label>
-                    <select id="theme-pref" class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                <div class="form-group">
+                    <label class="form-label">Theme Preference</label>
+                    <select id="theme-pref" class="form-input">
                         <option value="dark">Dark Mode</option>
                         <option value="light">Light Mode</option>
                     </select>
@@ -56,13 +63,13 @@
 
                 <!-- Editor Settings -->
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-400 mb-2 font-bold">Font Size (px)</label>
-                        <input type="number" id="font-size" value="14" min="10" max="24" class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                    <div class="form-group">
+                        <label class="form-label">Font Size (px)</label>
+                        <input type="number" id="font-size" value="14" min="10" max="24" class="form-input">
                     </div>
-                    <div>
-                        <label class="block text-gray-400 mb-2 font-bold">Tab Size</label>
-                        <select id="tab-size" class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
+                    <div class="form-group">
+                        <label class="form-label">Tab Size</label>
+                        <select id="tab-size" class="form-input">
                             <option value="2">2 Spaces</option>
                             <option value="4">4 Spaces</option>
                         </select>
@@ -70,11 +77,13 @@
                 </div>
 
             <!-- API Configuration -->
-            <div>
-                <label class="block text-gray-400 mb-2 font-bold">Gemini_API_Key</label>
-                <div class="flex gap-2">
-                    <input type="password" id="gemini_api_key" placeholder="Enter your Gemini API Key" class="flex-1 bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
-                    <button type="button" id="test-gemini-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded transition-colors border border-slate-600 font-bold"><i class="fas fa-plug mr-2"></i>Test</button>
+            <div class="form-group">
+                <label class="form-label">Gemini API Key</label>
+                <div class="flex gap-3">
+                    <input type="password" id="gemini_api_key" placeholder="Enter your Gemini API Key" class="form-input flex-1">
+                    <button type="button" id="test-gemini-btn" class="btn-secondary">
+                        <i class="fas fa-plug mr-2"></i>Test
+                    </button>
                 </div>
             </div>
             
@@ -302,6 +311,18 @@
 
         loadSettings();
     </script>
+    <script src="router.js"></script>
+    <script src="routing-utils.js"></script>
     <script src="/assets/theme.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.router = new Router();
+            await window.router.init();
+            if (!window.router.isAuthenticated()) {
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
 </body>
+
 </html>

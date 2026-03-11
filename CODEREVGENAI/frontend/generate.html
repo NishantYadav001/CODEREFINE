@@ -4,361 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generate Code - Code Refine</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Highlight.js for consistent styling with Index -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="stylesheet" href="/assets/styles.css">
-    
-    <style>
-        :root {
-            --bg-tertiary: #334155;
-            --accent-color: #10b981; /* Emerald 500 */
-        }
-
-        body.light-mode {
-            --bg-tertiary: #e2e8f0;
-            --accent-color: #059669;
-        }
-
-        .bg-slate-700 { background-color: var(--bg-tertiary) !important; }
-        
-        nav { background-color: var(--bg-secondary) !important; border-bottom-color: var(--border-color) !important; }
-
-        /* Form Elements */
-        input:focus, textarea:focus, select:focus { border-color: var(--accent-color) !important; }
-
-        /* Code Output */
-        .code-output { font-family: 'Fira Code', monospace; background-color: var(--bg-primary) !important; }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-primary); }
-        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    </style>
 </head>
-<body class="bg-slate-900 text-slate-50 h-screen flex flex-col overflow-hidden">
-
-    <!-- Navbar -->
-    <nav class="bg-slate-800 p-4 border-b border-slate-700 shadow-xl flex-none z-20">
-        <div class="container mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div>
-                    <h1 class="text-xl font-bold text-emerald-400 leading-none flex items-center gap-2"><i class="fas fa-code-branch"></i> Code Refine</h1>
-                    <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Creative Studio</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-6">
-                <!-- Guest Nav -->
-                <div id="guest-nav" class="hidden flex items-center gap-4">
-                    <a href="/login" class="text-slate-400 hover:text-white text-sm font-bold">Login</a>
-                    <a href="/signup" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white text-sm font-bold transition-colors">Sign Up</a>
-                </div>
-                <!-- User Nav -->
-                <div id="user-nav" class="flex items-center gap-6">
-                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
-                    <i class="fas fa-moon text-yellow-400"></i>
-                </button>
-                <a href="/profile" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-user"></i> Profile</a>
-                <a href="/dashboard" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2"><i class="fas fa-chart-line"></i> Dashboard</a>
-                <button onclick="logout()" class="text-red-400 hover:text-red-300 transition-colors ml-2"><i class="fas fa-sign-out-alt"></i></button>
-                </div>
-            </div>
+<body data-page="generate">
+    <div class="nav">
+        <div class="brand">Code Refine</div>
+        <div class="nav-links">
+            <span id="user-label" class="helper"></span>
+            <a class="btn btn-outline" href="/app">Fix Code</a>
+            <button class="btn btn-danger" data-logout>Logout</button>
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="flex flex-1 overflow-hidden relative">
-        <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-900 relative scroll-smooth">
-            <div class="container mx-auto max-w-7xl h-full flex flex-col lg:flex-row gap-6">
-        
-                <!-- Left Panel: Controls & Input -->
-                <div class="w-full lg:w-1/3 flex flex-col gap-4 h-full">
-                    
-                    <!-- Tab Selection -->
-                    <div class="flex gap-2 flex-wrap">
-                        <button onclick="window.location.href='/app'" class="mode-tab px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-slate-700 border-slate-700 text-slate-300 hover:bg-slate-600">
-                            <i class="fas fa-microscope mr-2"></i>Analyze Code
-                        </button>
-                        <button class="mode-tab active px-4 py-2 rounded-lg font-bold text-sm border transition-all bg-emerald-600 border-emerald-600 text-white">
-                            <i class="fas fa-sparkles mr-2"></i>Generate Code
-                        </button>
-                    </div>
-
-                    <!-- Merged Configuration & Prompt -->
-                    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
-                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <i class="fas fa-sliders-h text-emerald-400"></i> Configuration & Prompt
-                        </h2>
-
-                        <!-- Compact Configuration -->
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Language</label>
-                                <select id="language" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none">
-                                    <option value="python">Python</option>
-                                    <option value="javascript">JavaScript</option>
-                                    <option value="java">Java</option>
-                                    <option value="cpp">C++</option>
-                                    <option value="go">Go</option>
-                                    <option value="rust">Rust</option>
-                                    <option value="sql">SQL</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Model</label>
-                                <select id="model" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none">
-                                    <option value="llama-3.3-70b">Llama 3.3 70B</option>
-                                    <option value="llama-3.1-405b">Llama 3.1 405B</option>
-                                    <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-                                    <option value="gemini-pro">Gemini Pro</option>
-                                </select>
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Persona</label>
-                                <select id="persona" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none">
-                                    <option value="developer">Expert Developer (Optimized)</option>
-                                    <option value="student">Tutor (Simple & Commented)</option>
-                                    <option value="enterprise">Enterprise Architect (Secure)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <textarea id="prompt" class="flex-1 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 focus:border-emerald-500 outline-none resize-none mb-4 text-sm" 
-                            placeholder="Describe the code you want to generate... (e.g., 'Create a REST API for a todo list using FastAPI')"></textarea>
-                        
-                        <button onclick="generateCode()" id="gen-btn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
-                            <i class="fas fa-bolt"></i> Generate Code
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Right Panel: Output -->
-                <div class="w-full lg:w-2/3 h-full flex flex-col">
-                    <div class="bg-slate-800 rounded-t-xl border border-slate-700 border-b-0 p-3 flex items-center justify-between">
-                        <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider pl-2 flex items-center gap-2"><i class="fas fa-code"></i> Generated Output</span>
-                        <div class="flex gap-2">
-                            <button id="refineBtn" onclick="refineCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Refine Code"><i class="fas fa-wand-magic-sparkles"></i></button>
-                            <button id="copyBtn" onclick="copyCode()" class="text-slate-400 hover:text-white transition-colors px-2" title="Copy Code"><i class="fas fa-copy"></i></button>
-                            <button id="saveSnippetBtn" onclick="saveSnippet()" class="text-slate-400 hover:text-white transition-colors px-2" title="Save to Library"><i class="fas fa-save"></i></button>
-                        </div>
-                    </div>
-                    
-                    <div class="relative flex-1 bg-slate-900 border border-slate-700 rounded-b-xl overflow-hidden group">
-                        <pre class="m-0 p-4 h-full overflow-auto code-output"><code id="code-output" class="language-python text-sm"># Generated code will appear here...</code></pre>
-                        
-                        <!-- Loading Overlay -->
-                        <div id="loader" class="absolute inset-0 bg-slate-900/80 flex items-center justify-center hidden backdrop-blur-sm">
-                            <div class="flex flex-col items-center gap-4">
-                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-                                <div class="text-emerald-400 font-bold animate-pulse">Generating Code...</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
     </div>
 
-    <script>
-        // Security: Handle Browser Back/Forward Cache (BFCache)
-        window.addEventListener('pageshow', (event) => {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
-            const isGuest = username === 'Guest';
-            
-            if (!token && !isGuest) {
-                if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
-                    alert("Session ended. Please log in to continue.");
-                    window.location.replace('/login');
-                    return;
-                }
-                window.location.replace('/login'); 
-            }
-        });
+    <div class="container">
+        <section class="section">
+            <h2 class="page-title">Generate Code</h2>
+            <p class="muted">Describe what you want and select a language.</p>
+        </section>
 
-        // Security: Popstate Listener for Back Button
-        window.addEventListener('popstate', () => {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
-            const isGuest = username === 'Guest';
-            
-            if (!token && !isGuest) {
-                alert("Session Expired: Please log in to continue.");
-                window.location.replace('/login');
-            }
-        });
+        <section class="section split">
+            <div class="card">
+                <h3>Prompt</h3>
+                <textarea id="prompt-input" placeholder="Example: Build a REST API with CRUD endpoints for tasks"></textarea>
+                <div class="form-group">
+                    <label for="language-select">Language</label>
+                    <select id="language-select">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                </div>
+                <div class="toolbar">
+                    <button id="generate-btn" class="btn btn-primary">Generate</button>
+                </div>
+                <div id="generate-msg" class="alert" style="display:block;"></div>
+            </div>
+            <div class="card">
+                <h3>Generated Code</h3>
+                <div id="generate-output" class="output"></div>
+            </div>
+        </section>
+    </div>
 
-        // Load User Preferences
-        document.addEventListener('DOMContentLoaded', () => {
-            const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType') || 'developer';
-            const personaSelect = document.getElementById('persona');
-            if(personaSelect) personaSelect.value = userType;
-            
-            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
-            if (username === 'Guest') {
-                document.getElementById('guest-nav').classList.remove('hidden');
-                document.getElementById('user-nav').classList.add('hidden');
-                
-                // Guest Restriction Logic
-                const restrictedBtns = ['saveSnippetBtn'];
-                restrictedBtns.forEach(id => {
-                    const btn = document.getElementById(id);
-                    if (btn) {
-                        // Clone to remove existing listeners/onclick attributes
-                        const newBtn = btn.cloneNode(true);
-                        btn.parentNode.replaceChild(newBtn, btn);
-                        
-                        newBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                        newBtn.title = "Premium Feature";
-                        
-                        newBtn.onclick = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if(confirm("Please Signup to unlock this feature.")) {
-                                window.location.href = '/signup';
-                            }
-                        };
-                    }
-                });
-            }
-        });
-
-        // Make functions global for onclick handlers
-        async function generateCode() {
-            const prompt = document.getElementById('prompt').value;
-            const language = document.getElementById('language').value;
-            const model = document.getElementById('model').value;
-            const persona = document.getElementById('persona').value;
-            const btn = document.getElementById('gen-btn');
-            const loader = document.getElementById('loader');
-            const output = document.getElementById('code-output');
-            const user = localStorage.getItem('username') || sessionStorage.getItem('username') || 'guest';
-
-            if (!prompt.trim()) return alert("Please enter a prompt");
-
-            btn.disabled = true;
-            btn.classList.add('opacity-50');
-            loader.classList.remove('hidden');
-
-            try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, language, model, user_type: persona, username: user })
-                });
-                
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.detail || "Generation failed");
-                }
-                
-                const data = await res.json();
-                
-                // Update code and highlight
-                output.className = `language-${language}`;
-                output.textContent = data.generated_code;
-                hljs.highlightElement(output);
-
-            } catch (err) {
-                alert("Generation failed: " + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-                loader.classList.add('hidden');
-            }
-        }
-
-        async function refineCode() {
-            const output = document.getElementById('code-output');
-            const currentCode = output.textContent;
-            
-            if (!currentCode || currentCode.trim().startsWith('# Generated')) {
-                return alert("Generate some code first to refine!");
-            }
-
-            const instruction = prompt("How should the code be refined?", "Optimize for performance and add comments");
-            if (!instruction) return;
-
-            const language = document.getElementById('language').value;
-            const model = document.getElementById('model').value;
-            const persona = document.getElementById('persona').value;
-            const loader = document.getElementById('loader');
-
-            loader.classList.remove('hidden');
-            
-            try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        prompt: `Refine the following ${language} code. Instructions: ${instruction}\n\nCode:\n${currentCode}`, 
-                        language, 
-                        model, 
-                        user_type: persona 
-                    })
-                });
-                
-                const data = await res.json();
-                
-                output.textContent = data.generated_code;
-                hljs.highlightElement(output);
-
-            } catch (err) {
-                alert("Refinement failed: " + err.message);
-            } finally {
-                loader.classList.add('hidden');
-            }
-        }
-
-        function copyCode() {
-            const code = document.getElementById('code-output').textContent;
-            navigator.clipboard.writeText(code);
-            alert("Code copied to clipboard!");
-        }
-
-        async function saveSnippet() {
-            const user = localStorage.getItem('username') || sessionStorage.getItem('username') || 'guest';
-            if (user === 'Guest' || user === 'guest') {
-                if(confirm("Sign up to save your code snippets!")) window.location.href = '/signup';
-                return;
-            }
-
-            const code = document.getElementById('code-output').textContent;
-            if (!code || code.trim().startsWith('# Generated')) return alert("Generate some code first!");
-            
-            const title = prompt("Snippet Name:", "Generated Code");
-            if(!title) return;
-
-            const language = document.getElementById('language').value;
-
-            try {
-                const res = await fetch('/api/snippets/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user, title, code, language })
-                });
-                const data = await res.json();
-                alert("Snippet saved! ID: " + data.snippet_id);
-            } catch (err) {
-                alert("Failed to save: " + err.message);
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('token');
-            sessionStorage.removeItem('token');
-            window.location.href = '/login';
-        }
-
-        window.generateCode = generateCode;
-        window.refineCode = refineCode;
-        window.copyCode = copyCode;
-        window.saveSnippet = saveSnippet;
-        window.logout = logout;
-    </script>
-    <script src="/assets/theme.js"></script>
+    <div class="footer">Generated code is produced by the configured AI model.</div>
+    <script src="/assets/main.js"></script>
 </body>
 </html>

@@ -4,81 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Code Refine</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/assets/styles.css">
 </head>
-<body class="bg-slate-900 text-white font-sans h-screen flex items-center justify-center">
-
-    <div class="absolute top-4 right-4">
-        <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
-            <i class="fas fa-moon text-yellow-400"></i>
-        </button>
+<body data-page="signup">
+    <div class="nav">
+        <div class="brand">Code Refine</div>
+        <div class="nav-links">
+            <a class="btn btn-outline" href="/">Home</a>
+            <a class="btn btn-primary" href="/login">Login</a>
+        </div>
     </div>
 
-    <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-md relative">
-        <div class="text-center mb-8">
-            <i class="fas fa-code-branch text-blue-500 text-4xl mb-4"></i>
-            <h1 class="text-2xl font-bold">Create Account</h1>
-            <p class="text-slate-400 text-sm">Join Code Refine today</p>
-        </div>
-
-        <form id="signup-form" class="space-y-4">
-            <div>
-                <label class="block text-sm font-bold text-slate-300 mb-1">Username</label>
-                <input type="text" id="username" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
+    <div class="container">
+        <section class="section">
+            <div class="card form">
+                <h2 class="page-title">Create Account</h2>
+                <p class="muted">Start fixing and generating code immediately.</p>
+                <form id="signup-form">
+                    <div class="form-group">
+                        <label for="signup-username">Username</label>
+                        <input id="signup-username" type="text" placeholder="yourname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <input id="signup-email" type="email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input id="signup-password" type="password" placeholder="Create a password" required>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Sign Up</button>
+                    <div id="signup-msg" class="alert" style="display:block;"></div>
+                </form>
+                <p class="helper">Already have an account? <a href="/login">Login</a></p>
             </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-300 mb-1">Email</label>
-                <input type="email" id="email" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-300 mb-1">Password</label>
-                <input type="password" id="password" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-            </div>
-
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-colors">
-                Sign Up
-            </button>
-        </form>
-
-        <div class="mt-6 text-center text-sm text-slate-400">
-            Already have an account? <a href="/login" class="text-blue-400 hover:text-blue-300">Login</a>
-        </div>
-        <p id="msg" class="text-center text-sm mt-4"></p>
+        </section>
     </div>
 
-    <script>
-        document.getElementById('signup-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msg = document.getElementById('msg');
-
-            try {
-                const res = await fetch('/api/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, email, password })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    msg.innerText = "Account created! Redirecting...";
-                    msg.className = "text-center text-sm mt-4 text-green-400";
-                    setTimeout(() => window.location.href = '/login', 1500);
-                } else {
-                    msg.innerText = data.detail || "Signup failed";
-                    msg.className = "text-center text-sm mt-4 text-red-400";
-                }
-            } catch (err) {
-                msg.innerText = "Error connecting to server";
-                msg.className = "text-center text-sm mt-4 text-red-400";
-            }
-        });
-    </script>
-    <script src="/assets/theme.js"></script>
+    <div class="footer">User and admin accounts supported.</div>
+    <script src="/assets/main.js"></script>
 </body>
 </html>

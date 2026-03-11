@@ -13,105 +13,150 @@
         body.light-mode .bg-slate-700 { background-color: #e5e7eb !important; color: #111827 !important; }
     </style>
 </head>
-<body class="bg-slate-900 text-white font-sans">
+<body class="min-h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);">
 
-    <!-- Navbar -->
-    <nav class="bg-slate-800 border-b border-slate-700 p-4">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-shield-alt text-blue-500 text-2xl"></i>
-                <span class="text-xl font-bold">Admin Console</span>
-            </div>
-            <div class="space-x-4">
-                <button id="theme-toggle" class="p-2 rounded hover:bg-gray-700 transition-colors">
-                    <i class="fas fa-moon text-yellow-400"></i>
-                </button>
-                <a href="/app" class="hover:text-blue-400">Editor</a>
-                <a href="/generate" class="hover:text-emerald-400">Generate</a>
-                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">Logout</button>
+    <!-- Modern Navigation -->
+    <nav class="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">Admin Console</h1>
+                        <p class="text-xs text-gray-400">System Management</p>
+                    </div>
+                    <span class="badge badge-danger ml-2">ADMIN</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="theme-toggle" class="btn-icon">
+                        <i class="fas fa-moon text-yellow-400"></i>
+                    </button>
+                    <button onclick="if(window.router) window.router.navigate('app')" class="btn-secondary btn-sm">Back to App</button>
+                    <button onclick="if(window.router) window.router.navigate('dashboard')" class="btn-secondary btn-sm">Dashboard</button>
+                    <button onclick="logout()" class="btn-danger btn-sm">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="container mx-auto p-6">
-        <h1 class="text-3xl font-bold mb-6">System Overview</h1>
+    <div class="container mx-auto px-6 py-8">
+        <h1 class="text-3xl font-bold text-white mb-8">System Overview</h1>
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-                <h3 class="text-gray-400 text-sm">Total Users</h3>
-                <p class="text-3xl font-bold text-blue-400" id="total-users">-</p>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Users</h3>
+                        <p class="text-4xl font-bold text-blue-400 mt-2" id="total-users">-</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-users text-blue-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-                <h3 class="text-gray-400 text-sm">Total Reviews</h3>
-                <p class="text-3xl font-bold text-green-400" id="total-reviews">-</p>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Reviews</h3>
+                        <p class="text-4xl font-bold text-green-400 mt-2" id="total-reviews">-</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-clipboard-check text-green-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-                <h3 class="text-gray-400 text-sm">AI Generations</h3>
-                <p class="text-3xl font-bold text-purple-400" id="total-gens">-</p>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider">AI Generations</h3>
+                        <p class="text-4xl font-bold text-purple-400 mt-2" id="total-gens">-</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-magic text-purple-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-                <h3 class="text-gray-400 text-sm">Top Language</h3>
-                <p class="text-3xl font-bold text-yellow-400" id="top-lang">-</p>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider">Top Language</h3>
+                        <p class="text-4xl font-bold text-yellow-400 mt-2" id="top-lang">-</p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-code text-yellow-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Charts Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-                <h3 class="text-xl font-bold mb-4">Language Usage Distribution</h3>
-                <canvas id="langChart"></canvas>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="card">
+                <h3 class="text-xl font-bold mb-4 text-white">Language Usage Distribution</h3>
+                <div class="bg-white/5 rounded-xl p-4">
+                    <canvas id="langChart"></canvas>
+                </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-                <h3 class="text-xl font-bold mb-4">System Health</h3>
-                <div id="health-status" class="space-y-4">
-                    <div class="flex justify-between border-b border-slate-700 pb-2">
-                        <span>API Status</span>
-                        <span id="api-status" class="text-green-500 font-bold">Checking...</span>
+            <div class="card">
+                <h3 class="text-xl font-bold mb-4 text-white">System Health</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                        <span class="text-gray-300">API Status</span>
+                        <span id="api-status" class="badge badge-success">Checking...</span>
                     </div>
-                    <div class="flex justify-between border-b border-slate-700 pb-2">
-                        <span>Model</span>
-                        <span id="model-name" class="text-gray-300">-</span>
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                        <span class="text-gray-300">Model</span>
+                        <span id="model-name" class="text-white font-semibold">-</span>
                     </div>
-                    <div class="flex justify-between border-b border-slate-700 pb-2">
-                        <span>OCR Available</span>
-                        <span id="ocr-status" class="text-gray-300">-</span>
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                        <span class="text-gray-300">OCR Available</span>
+                        <span id="ocr-status" class="text-white font-semibold">-</span>
                     </div>
-                    <div class="flex justify-between border-b border-slate-700 pb-2">
-                        <span>Gemini API</span>
-                        <span id="gemini-status" class="text-gray-300">-</span>
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                        <span class="text-gray-300">Gemini API</span>
+                        <span id="gemini-status" class="text-white font-semibold">-</span>
                     </div>
-                    <div class="flex justify-between border-b border-slate-700 pb-2 items-center">
-                        <span>Maintenance Mode</span>
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                        <span class="text-gray-300">Maintenance Mode</span>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="maintenance-toggle" class="sr-only peer" onchange="toggleMaintenance()">
-                            <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
                         </label>
                     </div>
-                    <div class="flex justify-between">
-                        <span>Version</span>
-                        <span id="sys-version" class="text-gray-300">-</span>
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                        <span class="text-gray-300">Version</span>
+                        <span id="sys-version" class="text-white font-semibold">-</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- User Management Section -->
-        <div class="mt-8 bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-            <h2 class="text-xl font-bold mb-4">User Management</h2>
+        <div class="card">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-white">User Management</h2>
+                <span class="badge badge-info">
+                    <i class="fas fa-users mr-2"></i>User Directory
+                </span>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-700 text-slate-300 text-sm uppercase">
-                            <th class="p-3 border-b border-slate-600">Username</th>
-                            <th class="p-3 border-b border-slate-600">Email</th>
-                            <th class="p-3 border-b border-slate-600">Joined</th>
-                            <th class="p-3 border-b border-slate-600">Role</th>
-                            <th class="p-3 border-b border-slate-600">Actions</th>
+                        <tr class="bg-white/5 text-gray-300 text-xs uppercase">
+                            <th class="p-4 font-bold">Username</th>
+                            <th class="p-4 font-bold">Email</th>
+                            <th class="p-4 font-bold">Joined</th>
+                            <th class="p-4 font-bold">Role</th>
+                            <th class="p-4 font-bold">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="users-list" class="divide-y divide-slate-700 text-sm">
+                    <tbody id="users-list" class="divide-y divide-white/5 text-sm">
                         <!-- Users injected here -->
                     </tbody>
                 </table>
@@ -120,14 +165,14 @@
     </div>
 
     <!-- Password Reset Modal -->
-    <div id="resetModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
+    <div id="resetModal" class="modal">
+        <div class="modal-content">
             <h3 class="text-xl font-bold text-white mb-4">Reset Password</h3>
-            <p class="text-slate-400 mb-4">Enter new password for <span id="reset-target-user" class="text-white font-bold"></span></p>
-            <input type="password" id="new-password" placeholder="New Password" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none mb-4">
-            <div class="flex justify-end gap-2">
-                <button onclick="closeResetModal()" class="text-slate-400 hover:text-white px-4 py-2">Cancel</button>
-                <button onclick="confirmResetPassword()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">Reset Password</button>
+            <p class="text-gray-300 mb-4">Enter new password for <span id="reset-target-user" class="text-white font-bold"></span></p>
+            <input type="password" id="new-password" placeholder="New Password" class="form-input mb-4">
+            <div class="flex justify-end gap-3">
+                <button onclick="closeResetModal()" class="btn-secondary">Cancel</button>
+                <button onclick="confirmResetPassword()" class="btn-danger">Reset Password</button>
             </div>
         </div>
     </div>
@@ -274,6 +319,38 @@
         loadData();
         loadUsers();
     </script>
+    <!-- Routing Scripts -->
+    <script src="router.js"></script>
+    <script src="routing-utils.js"></script>
     <script src="/assets/theme.js"></script>
+    <script>
+        // Admin logout function
+        async function logout() {
+            if (window.router) {
+                window.router.logout();
+            }
+            window.location.href = '/landing.html';
+        }
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize router
+            window.router = new Router();
+            await window.router.init();
+            
+            // Enforce admin-only access
+            if (!window.router.isAdmin()) {
+                alert('Admin access required');
+                window.location.href = '/landing.html';
+            }
+            
+            // Setup admin navigation
+            const adminNav = document.getElementById('admin-nav');
+            const adminBadge = document.getElementById('admin-badge');
+            if (adminNav && adminBadge) {
+                adminBadge.style.display = 'inline-block';
+                adminNav.style.display = 'flex';
+            }
+        });
+    </script>
 </body>
 </html>

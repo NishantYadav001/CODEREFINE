@@ -3,171 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Refine - AI Editor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>Code Fix - Code Refine</title>
     <link rel="stylesheet" href="/assets/styles.css">
-    <!-- Monaco Editor Loader -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-    <!-- Mermaid -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <!-- Diff2Html -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff2html/3.4.22/diff2html-ui.min.js"></script>
-    <!-- Highlight.js -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <!-- Marked & DOMPurify -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
 </head>
-<body class="bg-slate-900 text-white h-screen flex flex-col overflow-hidden">
-    <!-- Navbar -->
-    <nav class="bg-slate-800 border-b border-slate-700 p-3 flex-none z-20">
-        <div class="flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <a href="/" class="text-xl font-bold text-blue-500 flex items-center gap-2">
-                    <i class="fas fa-code-branch"></i> Code Refine
-                </a>
-                <span id="platform-subtitle" class="text-xs text-slate-400 uppercase tracking-widest border-l border-slate-600 pl-3">Developer Edition</span>
-                <span id="user-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200">Pro</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <div id="user-nav" class="flex items-center gap-4">
-                    <button id="theme-toggle" class="text-slate-400 hover:text-yellow-400 transition-colors"><i class="fas fa-moon"></i></button>
-                    <a href="/dashboard" class="text-slate-400 hover:text-white text-sm font-medium"><i class="fas fa-chart-line mr-1"></i> Dashboard</a>
-                    <a href="/profile" id="profile-link" class="text-slate-400 hover:text-white text-sm font-medium"><i class="fas fa-user mr-1"></i> Profile</a>
-                    <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm font-medium"><i class="fas fa-sign-out-alt"></i></button>
-                </div>
-                <div id="guest-nav" class="hidden flex items-center gap-3">
-                    <a href="/login" class="text-sm font-bold text-slate-300 hover:text-white">Login</a>
-                    <a href="/signup" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-sm font-bold transition-colors">Sign Up</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Layout -->
-    <div class="flex-1 flex overflow-hidden relative">
-        <!-- Left Panel (Editor) -->
-        <div id="left-panel" class="w-full lg:w-1/2 flex flex-col border-r border-slate-700 bg-slate-900 relative">
-            <!-- Toolbar -->
-            <div class="flex items-center justify-between p-2 bg-slate-800 border-b border-slate-700">
-                <div class="flex items-center gap-2">
-                    <select id="editorLang" class="bg-slate-700 text-xs text-white border border-slate-600 rounded px-2 py-1 outline-none focus:border-blue-500">
-                        <option value="python">Python</option>
-                        <option value="javascript">JavaScript</option>
-                        <option value="java">Java</option>
-                        <option value="cpp">C++</option>
-                        <option value="html">HTML</option>
-                        <option value="css">CSS</option>
-                        <option value="sql">SQL</option>
-                    </select>
-                    <button id="formatBtn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded" title="Format Code"><i class="fas fa-align-left"></i></button>
-                    <button id="minifyBtn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded" title="Minify Code"><i class="fas fa-compress-arrows-alt"></i></button>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button id="runCodeBtn" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors">
-                        <i class="fas fa-play"></i> Run
-                    </button>
-                    <button id="reviewBtn" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors">
-                        <i class="fas fa-microscope"></i> Review
-                    </button>
-                    <button id="fixBtn" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors">
-                        <i class="fas fa-wand-magic-sparkles"></i> Fix
-                    </button>
-                    <button id="settings-btn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded"><i class="fas fa-cog"></i></button>
-                </div>
-            </div>
-
-            <!-- Editor Container -->
-            <div id="editorWrapper" class="flex-1 relative">
-                <div id="monaco-container" class="absolute inset-0"></div>
-            </div>
-            
-            <!-- Status Bar -->
-            <div class="bg-slate-800 text-slate-400 text-[10px] p-1 px-3 flex justify-between items-center border-t border-slate-700">
-                <div id="cursorStatus">Ln 1, Col 1</div>
-                <div id="detectedLangDisplay" class="hidden text-blue-400"></div>
-            </div>
-        </div>
-
-        <!-- Right Panel (Output/Chat) -->
-        <div id="right-panel" class="w-full lg:w-1/2 flex flex-col bg-slate-900 h-full overflow-hidden">
-            <!-- Tabs -->
-            <div class="flex border-b border-slate-700 bg-slate-800">
-                <button id="tabResults" class="flex-1 py-3 text-sm font-bold text-white border-b-2 border-blue-500 bg-slate-700/50">
-                    <i class="fas fa-clipboard-check mr-2"></i>Results
-                </button>
-                <button id="tabChat" class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors">
-                    <i class="fas fa-comments mr-2"></i>AI Chat
-                </button>
-            </div>
-
-            <!-- Content Area -->
-            <div class="flex-1 overflow-y-auto p-4 relative scroll-smooth" id="rightContent">
-                
-                <!-- Review Results View -->
-                <div id="reviewResults" class="space-y-6">
-                    <!-- Stats Cards -->
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <div class="bg-red-900/20 border border-red-900/50 p-2 rounded-lg">
-                            <div class="text-xl font-bold text-red-400" id="critical-count">0</div>
-                            <div class="text-[10px] text-red-300 uppercase">Critical</div>
-                        </div>
-                        <div class="bg-orange-900/20 border border-orange-900/50 p-2 rounded-lg">
-                            <div class="text-xl font-bold text-orange-400" id="high-count">0</div>
-                            <div class="text-[10px] text-orange-300 uppercase">High</div>
-                        </div>
-                        <div class="bg-yellow-900/20 border border-yellow-900/50 p-2 rounded-lg">
-                            <div class="text-xl font-bold text-yellow-400" id="medium-count">0</div>
-                            <div class="text-[10px] text-yellow-300 uppercase">Medium</div>
-                        </div>
-                        <div class="bg-blue-900/20 border border-blue-900/50 p-2 rounded-lg">
-                            <div class="text-xl font-bold text-blue-400" id="low-count">0</div>
-                            <div class="text-[10px] text-blue-300 uppercase">Low</div>
-                        </div>
-                    </div>
-
-                    <!-- Feedback Area -->
-                    <div id="reviewFeedback" class="prose prose-invert prose-sm max-w-none">
-                        <div class="text-center text-slate-500 py-10">
-                            <i class="fas fa-code text-4xl mb-4 opacity-50"></i>
-                            <p>Run a review or fix to see AI insights here.</p>
-                        </div>
-                    </div>
-
-                    <!-- Rewritten Code Output (Hidden initially) -->
-                    <div id="codeDisplaySection" class="hidden">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-emerald-400"><i class="fas fa-check-circle mr-2"></i>Fixed Code</h3>
-                            <div class="flex gap-2">
-                                <button id="toggleDiffBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white">Diff View</button>
-                                <button id="downloadCodeBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white">Download</button>
-                            </div>
-                        </div>
-                        <pre class="bg-slate-950 p-4 rounded-lg border border-slate-700 overflow-x-auto"><code id="rewrittenCodeOutput" class="language-python text-sm"></code></pre>
-                    </div>
-
-                    <!-- Diff View Container -->
-                    <div id="diffViewContainer" class="hidden bg-white rounded-lg overflow-hidden text-black"></div>
-
-                    <!-- Terminal Output -->
-                    <div id="terminalContainer" class="hidden bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-sm">
-                        <div class="text-slate-500 text-xs uppercase mb-2 border-b border-slate-800 pb-1">Terminal Output</div>
-                        <div id="terminalOutput" class="whitespace-pre-wrap"></div>
-                    </div>
-
-                    <!-- Visualizer Output -->
-                    <div id="visualizerContainer" class="hidden bg-slate-800 border border-slate-700 rounded-lg p-4 flex justify-center">
-                        <div id="mermaidOutput"></div>
-                    </div>
-                </div>
-            </div>
+<body data-page="app">
+    <div class="nav">
+        <div class="brand">Code Refine</div>
+        <div class="nav-links">
+            <span id="user-label" class="helper"></span>
+            <a class="btn btn-outline" href="/generate">Generate Code</a>
+            <button class="btn btn-danger" data-logout>Logout</button>
         </div>
     </div>
-    <!-- Scripts -->
-    <script type="module" src="/assets/main.js"></script>
-    <script src="/assets/theme.js"></script>
+
+    <div class="container">
+        <section class="section">
+            <h2 class="page-title">Fix Code</h2>
+            <p class="muted">Paste code below and get a clean, improved version.</p>
+        </section>
+
+        <section class="section split">
+            <div class="card">
+                <h3>Input Code</h3>
+                <textarea id="code-input" placeholder="Paste code here..."></textarea>
+                <div class="toolbar" style="margin-top:12px;">
+                    <button id="fix-btn" class="btn btn-primary">Fix Code</button>
+                    <button id="clear-btn" class="btn btn-outline">Clear</button>
+                </div>
+                <div id="fix-msg" class="alert" style="display:block;"></div>
+            </div>
+            <div class="card">
+                <h3>Fixed Output</h3>
+                <div id="fix-output" class="output"></div>
+                <div class="toolbar" style="margin-top:12px;">
+                    <button id="copy-btn" class="btn btn-outline">Copy Output</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="footer">Fixes are generated using AI models configured on the backend.</div>
+    <script src="/assets/main.js"></script>
 </body>
 </html>

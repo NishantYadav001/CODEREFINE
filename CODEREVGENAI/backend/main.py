@@ -35,8 +35,16 @@ from ai_service import (
 )
 
 # Import Middleware/Dependencies
-from dependencies import get_current_user, get_current_admin, require_role
+from dependencies import get_current_user, get_current_admin, require_role, get_optional_user
 from audit import AuditMiddleware, AUDIT_LOGS
+
+# Import Routing Configuration
+from routes_config import (
+    GUEST_ROUTES, USER_ROUTES, ADMIN_ROUTES,
+    PERMISSION_MATRIX, NAVIGATION_MENUS,
+    get_routes_for_role, can_access_route,
+    get_navigation_for_role, get_default_route
+)
 
 # OCR imports - try/except for optional dependency
 try:
@@ -135,7 +143,7 @@ def is_user_admin(username: str) -> bool:
     if conn:
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT role FROM users WHERE username = %s", (username,))
+            cursor.execute("SELECT role FROM users WHERE username = ?", (username,))
             row = cursor.fetchone()
             if row and row['role'] == 'admin':
                 return True
@@ -309,8 +317,11 @@ async def login(payload: dict = Body(...)):
         try:
             cursor = conn.cursor(dictionary=True)
             # Allow login by username OR email
-            cursor.execute("SELECT * FROM users WHERE username = %s OR email = %s", (username_input, username_input))
+            cursor.execute("SELECT * FROM users WHERE username = ? OR email = ?", (username_input, username_input))
             user_data = cursor.fetchone()
+
+            if user_data and not isinstance(user_data, dict):
+                user_data = dict(user_data)
             
             if user_data and not verify_password(password, user_data["password_hash"]):
                 user_data = None
@@ -374,11 +385,11 @@ async def signup(payload: dict = Body(...)):
         try:
             cursor = conn.cursor()
             # Check if email already exists
-            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
             if cursor.fetchone():
                 raise HTTPException(status_code=400, detail="Email already registered")
 
-            cursor.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)", (username, email, hashed_password))
+            cursor.execute("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)", (username, email, hashed_password))
             conn.commit()
         except Error as e:
             raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
@@ -421,24 +432,24 @@ async def update_profile(payload: dict = Body(...), user: dict = Depends(get_cur
             cursor = conn.cursor(dictionary=True)
             
             # Verify user exists and get current data
-            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
             user_record = cursor.fetchone()
             if not user_record:
                 raise HTTPException(status_code=404, detail="User not found")
 
             if email:
                 # Check if email is taken by another user
-                cursor.execute("SELECT id FROM users WHERE email = %s AND username != %s", (email, username))
+                cursor.execute("SELECT id FROM users WHERE email = ? AND username != ?", (email, username))
                 if cursor.fetchone():
                     raise HTTPException(status_code=400, detail="Email already in use by another account")
-                cursor.execute("UPDATE users SET email = %s WHERE username = %s", (email, username))
+                cursor.execute("UPDATE users SET email = ? WHERE username = ?", (email, username))
             
             if new_password:
                 if not current_password:
                     raise HTTPException(status_code=400, detail="Current password is required to change password")
                 if not verify_password(current_password, user_record["password_hash"]):
                     raise HTTPException(status_code=400, detail="Incorrect current password")
-                cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (get_password_hash(new_password), username))
+                cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (get_password_hash(new_password), username))
                 
             conn.commit()
         finally:
@@ -473,7 +484,7 @@ async def delete_user(username: str):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM users WHERE username = %s", (username,))
+            cursor.execute("DELETE FROM users WHERE username = ?", (username,))
             conn.commit()
             if cursor.rowcount == 0:
                  raise HTTPException(status_code=404, detail="User not found")
@@ -515,6 +526,72 @@ async def health():
         "gemini_ready": GEMINI_AVAILABLE and bool(settings.GEMINI_API_KEY),
         "model": "llama-3.3-70b-versatile",
         "version": settings.VERSION
+    }
+
+# --- Routing & Navigation Endpoints (New) ---
+
+@app.get("/api/routes/config")
+async def get_routes_config(user: dict = Depends(get_optional_user)):
+    """Get route configuration for current user based on their role"""
+    if not user:
+        role = "guest"
+        username = "guest"
+    else:
+        role = user.get("role", "guest")
+        username = user.get("username", "guest")
+    
+    return {
+        "success": True,
+        "data": {
+            "routes": get_routes_for_role(role),
+            "navigation": get_navigation_for_role(role),
+            "permissions": PERMISSION_MATRIX.get(role, {}),
+            "role": role,
+            "username": username
+        }
+    }
+
+@app.post("/api/routes/check")
+async def check_route_access(payload: dict = Body(...), user: dict = Depends(get_optional_user)):
+    """Check if current user can access a specific route"""
+    route = payload.get("route")
+    
+    if not route:
+        raise HTTPException(status_code=400, detail="Route name required")
+    
+    if not user:
+        role = "guest"
+    else:
+        role = user.get("role", "guest")
+    
+    can_access = can_access_route(route, role)
+    
+    return {
+        "success": True,
+        "route": route,
+        "can_access": can_access,
+        "current_role": role,
+        "message": "Access granted" if can_access else "Access denied - insufficient permissions"
+    }
+
+@app.get("/api/routes/navigation")
+async def get_navigation(user: dict = Depends(get_optional_user)):
+    """Get navigation menu for current user based on their role"""
+    if not user:
+        role = "guest"
+        username = "guest"
+    else:
+        role = user.get("role", "guest")
+        username = user.get("username", "guest")
+    
+    navigation = get_navigation_for_role(role)
+    
+    return {
+        "success": True,
+        "navigation": navigation,
+        "role": role,
+        "username": username,
+        "default_route": get_default_route(role)
     }
 
 # --- OCR Endpoint ---
@@ -880,7 +957,7 @@ async def save_snippet(payload: dict = Body(...)):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO snippets (username, title, code, language) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO snippets (username, title, code, language) VALUES (?, ?, ?, ?)",
                 (user, title, code, language)
             )
             conn.commit()
@@ -916,7 +993,7 @@ async def get_snippets(user: str):
     if conn:
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT id, title, code, language, created_at FROM snippets WHERE username = %s ORDER BY created_at DESC", (user,))
+            cursor.execute("SELECT id, title, code, language, created_at FROM snippets WHERE username = ? ORDER BY created_at DESC", (user,))
             snippets = cursor.fetchall()
             for s in snippets:
                 if isinstance(s['created_at'], datetime):
@@ -938,7 +1015,7 @@ async def delete_snippet(user: str, snippet_id: int):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM snippets WHERE id = %s AND username = %s", (snippet_id, user))
+            cursor.execute("DELETE FROM snippets WHERE id = ? AND username = ?", (snippet_id, user))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Snippet not found")
@@ -969,12 +1046,12 @@ async def save_to_history(payload: dict = Body(...)):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT MAX(version) FROM history WHERE username = %s", (user,))
+            cursor.execute("SELECT MAX(version) FROM history WHERE username = ?", (user,))
             row = cursor.fetchone()
             next_version = (row[0] if row and row[0] is not None else 0) + 1
             
             cursor.execute(
-                "INSERT INTO history (username, code, action, version) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO history (username, code, action, version) VALUES (?, ?, ?, ?)",
                 (user, code, action, next_version)
             )
             conn.commit()
@@ -1008,7 +1085,7 @@ async def get_history(user: str):
     if conn:
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT version, code, action, created_at as timestamp FROM history WHERE username = %s ORDER BY version DESC", (user,))
+            cursor.execute("SELECT version, code, action, created_at as timestamp FROM history WHERE username = ? ORDER BY version DESC", (user,))
             history = cursor.fetchall()
             for h in history:
                 if isinstance(h['timestamp'], datetime):
@@ -1660,9 +1737,9 @@ async def manifest():
 # 14.5 SERVE CORE JS FILES (Root Level)
 @app.get("/{filename}.js", include_in_schema=False)
 async def serve_core_js(filename: str):
-    """Serve core JS files from frontend root (sw, main, utils, theme)"""
+    """Serve core JS files from frontend root (sw, main, utils, theme, router)"""
     # Allow specific JS files that are expected in the root
-    allowed = ["sw", "main", "utils", "theme", "api"]
+    allowed = ["sw", "main", "utils", "theme", "api", "router", "routing-utils"]
     if filename in allowed:
         path = Path(__file__).parent.parent / "frontend" / f"{filename}.js"
         if path.exists():
@@ -1747,7 +1824,7 @@ async def admin_reset_password(payload: dict = Body(...), admin: dict = Depends(
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET password_hash = %s WHERE username = %s", (get_password_hash(new_password), target_username))
+            cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (get_password_hash(new_password), target_username))
             conn.commit()
             if cursor.rowcount == 0:
                  raise HTTPException(status_code=404, detail="User not found")
@@ -1847,7 +1924,7 @@ async def forgot_password(request: Request, background_tasks: BackgroundTasks, p
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
             if cursor.fetchone():
                 user_found = True
         except Error as e:
@@ -1917,37 +1994,25 @@ async def serve_ui(page: str):
     base_path = Path(__file__).parent.parent / "frontend"
     file_map = {
         "index": "index.html",
-        "app": "index.html", 
-        "dashboard": "dashboard.html", 
+        "app": "index.html",
         "login": "login.html",
-        "admin": "admin.html",
-        "batch": "batch.html",
-        "collab": "collab.html",
-        "profile": "profile.html",
-        "reports": "reports.html",
-        "settings": "settings.html",
-        "help": "help.html",
-        "landing": "landing.html",
-        "404": "404.html",
-        "generate": "generate.html",
-        "status": "status.html",
         "signup": "signup.html",
         "register": "signup.html",
-        "unauthorized": "403.html" # Maps to Unauthorized Page
+        "generate": "generate.html",
+        "landing": "landing.html"
     }
     
-    # Handle nested routes for SPA-like behavior
-    if page.startswith("admin/"):
-        target_file = "admin.html"
-    else:
-        target_file = file_map.get(page)
+    # Remove .html extension if provided
+    page_key = page.replace(".html", "") if page.endswith(".html") else page
     
-    # If page not found in map, serve 404
+    target_file = file_map.get(page_key)
+    
+    # If page not found in map, fallback to landing
     if not target_file:
-        path_404 = base_path / "404.html"
-        if path_404.exists():
-            return FileResponse(path_404, status_code=404)
-        return HTMLResponse("<h1>404: Page Not Found</h1>", status_code=404)
+        path_fallback = base_path / "landing.html"
+        if path_fallback.exists():
+            return FileResponse(path_fallback)
+        return HTMLResponse("<h1>Page Not Found</h1>", status_code=404)
 
     path = base_path / target_file
     

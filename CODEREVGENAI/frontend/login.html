@@ -4,250 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Code Refine</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/assets/styles.css">
 </head>
-<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4">
-
-    <div class="absolute top-4 right-4">
-        <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
-            <i class="fas fa-moon text-yellow-400"></i>
-        </button>
-    </div>
-
-    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 relative">
-        <div class="text-center mb-8">
-            <div class="text-5xl mb-4"><i class="fas fa-code-branch text-blue-500"></i></div>
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                Code Refine
-            </h1>
-            <p class="text-slate-400 mt-2">AI-Powered Analysis & Writing</p>
-        </div>
-
-        <div id="errorMsg" class="hidden mb-4 p-3 bg-red-900/40 border border-red-700 rounded-lg text-red-300 text-sm"></div>
-
-        <form onsubmit="handleLogin(event)" class="space-y-5">
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-2">
-                    <i class="fas fa-user mr-2"></i>Username
-                </label>
-                <input type="text" id="username" placeholder="Enter your username" required
-                    class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-white">
-            </div>
-
-            <div>
-                <div class="flex justify-between items-center mb-2">
-                    <label class="block text-sm font-medium text-slate-300">
-                        <i class="fas fa-lock mr-2"></i>Password
-                    </label>
-                    <a href="#" onclick="openForgotModal(event)" class="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</a>
-                </div>
-                <input type="password" id="password" placeholder="Enter your password" required
-                    class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-white">
-            </div>
-
-            <div class="flex items-center">
-                <input type="checkbox" id="rememberMe" class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800 accent-blue-600">
-                <label for="rememberMe" class="ml-2 block text-sm text-slate-300">Remember me</label>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-300 mb-2">
-                    <i class="fas fa-user-tag mr-2"></i>Select Platform Mode
-                </label>
-                <select id="userType" required
-                    class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-white cursor-pointer appearance-none">
-                    <option value="developer">Developer (Standard Optimization)</option>
-                    <option value="student">Student (Intelligent Learning Tool)</option>
-                    <option value="organisation">Organisation (Team Review Mode)</option>
-                    <option value="enterprise">Enterprise (QA & Security Focus)</option>
-                </select>
-                <p class="text-[10px] text-slate-500 mt-1 ml-1 italic">*Mode changes AI feedback style and focus areas.</p>
-            </div>
-
-            <button type="submit" 
-                class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 mt-4">
-                <i class="fas fa-sign-in-alt"></i> Sign In
-            </button>
-        </form>
-
-        <div class="mt-6 text-center">
-            <button onclick="continueAsGuest()" class="text-slate-400 hover:text-white text-sm transition-colors border-b border-transparent hover:border-white pb-0.5">Continue as Guest</button>
-        </div>
-
-        <div class="text-center mt-8 text-[10px] text-slate-500 uppercase tracking-widest">
-            Powered by Groq &bull; Llama 3.3 70B
+<body data-page="login">
+    <div class="nav">
+        <div class="brand">Code Refine</div>
+        <div class="nav-links">
+            <a class="btn btn-outline" href="/">Home</a>
+            <a class="btn btn-primary" href="/signup">Create Account</a>
         </div>
     </div>
 
-    <!-- Logout Confirmation Modal (Back Button Protection) -->
-    <div id="logoutConfirmModal" class="fixed inset-0 bg-black/90 z-[60] hidden flex items-center justify-center backdrop-blur-md">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md text-center">
-            <div class="w-16 h-16 bg-blue-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400">
-                <i class="fas fa-user-check text-2xl"></i>
+    <div class="container">
+        <section class="section">
+            <div class="card form">
+                <h2 class="page-title">Sign In</h2>
+                <p class="muted">Access your workspace and start fixing code.</p>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-username">Username or Email</label>
+                        <input id="login-username" type="text" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input id="login-password" type="password" placeholder="Your password" required>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Login</button>
+                    <div id="login-msg" class="alert" style="display:block;"></div>
+                </form>
+                <p class="helper">No account? <a href="/signup">Create one</a></p>
             </div>
-            <h3 class="text-xl font-bold text-white mb-2">Already Logged In</h3>
-            <p class="text-slate-400 mb-6">You are currently logged in. Do you want to logout or return to the app?</p>
-            <div class="flex gap-3 justify-center">
-                <button onclick="confirmLogout()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-colors">
-                    Logout
-                </button>
-                <button onclick="goToApp()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-colors">
-                    Go to App
-                </button>
-            </div>
-        </div>
+        </section>
     </div>
 
-    <!-- Forgot Password Modal -->
-    <div id="forgotModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md relative mx-4">
-            <button onclick="closeForgotModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
-            <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-blue-900/50 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-400">
-                    <i class="fas fa-key text-xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-white">Reset Password</h3>
-                <p class="text-slate-400 text-sm mt-1">Enter your email to receive reset instructions</p>
-            </div>
-            
-            <form onsubmit="handleForgotSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
-                    <input type="email" id="forgot-email" required class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 focus:border-blue-500 outline-none text-white placeholder-slate-500" placeholder="name@example.com">
-                </div>
-                <button type="submit" id="forgot-submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors">
-                    Send Reset Link
-                </button>
-                <button type="button" id="forgot-resend-btn" onclick="handleForgotSubmit(event)" class="hidden w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors">
-                    Resend Email
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        // Check auth on load to handle Back Button navigation
-        const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-        if (authToken) {
-            window.skipAuthRedirect = true; // Signal to theme.js to skip auto-redirect
-            document.getElementById('logoutConfirmModal').classList.remove('hidden');
-        }
-
-        function confirmLogout() {
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.reload();
-        }
-
-        function goToApp() {
-            const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType') || 'developer';
-            const username = localStorage.getItem('username') || sessionStorage.getItem('username');
-            window.location.href = `/app?userType=${userType}&email=${username}`;
-        }
-
-        async function handleLogin(event) {
-            event.preventDefault();
-            
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const userType = document.getElementById('userType').value;
-            const errorMsg = document.getElementById('errorMsg');
-            
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Invalid credentials');
-                }
-                
-                const data = await response.json();
-                
-                // Store token and user info based on Remember Me
-                const rememberMe = document.getElementById('rememberMe').checked;
-                const storage = rememberMe ? localStorage : sessionStorage;
-                const otherStorage = rememberMe ? sessionStorage : localStorage;
-
-                // Clear other storage to avoid conflicts
-                ['token', 'username', 'userType', 'role'].forEach(key => otherStorage.removeItem(key));
-
-                storage.setItem('token', data.token);
-                storage.setItem('username', data.username);
-                storage.setItem('role', data.role);
-                storage.setItem('userType', userType);
-                
-                // Redirect based on role
-                if (data.role === 'admin') {
-                    window.location.href = '/admin';
-                } else {
-                    window.location.href = `/app?userType=${userType}&email=${username}`;
-                }
-                
-            } catch (error) {
-                errorMsg.textContent = error.message || 'Login failed. Try admin/password';
-                errorMsg.classList.remove('hidden');
-            }
-        }
-
-        function continueAsGuest() {
-            window.location.href = '/app?userType=student&username=Guest';
-        }
-        
-        // Forgot Password Logic
-        function openForgotModal(e) {
-            if(e) e.preventDefault();
-            document.getElementById('forgotModal').classList.remove('hidden');
-        }
-
-        function closeForgotModal() {
-            document.getElementById('forgotModal').classList.add('hidden');
-            document.getElementById('forgot-submit-btn').classList.remove('hidden');
-            document.getElementById('forgot-resend-btn').classList.add('hidden');
-        }
-
-        async function handleForgotSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById('forgot-email').value;
-            
-            let activeBtn = document.getElementById('forgot-submit-btn');
-            if (e.type === 'click') {
-                const btn = e.target.closest('button');
-                if (btn) activeBtn = btn;
-            }
-
-            const originalText = activeBtn.innerText;
-            
-            activeBtn.disabled = true;
-            activeBtn.innerText = "Sending...";
-            
-            try {
-                const res = await fetch('/api/forgot-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                
-                const data = await res.json();
-                alert(data.message);
-                closeForgotModal();
-            } catch (err) {
-                alert("Failed to send reset link. Please try again.");
-                document.getElementById('forgot-submit-btn').classList.add('hidden');
-                document.getElementById('forgot-resend-btn').classList.remove('hidden');
-            } finally {
-                activeBtn.disabled = false;
-                activeBtn.innerText = originalText;
-            }
-        }
-
-        // Do not auto-redirect on page load; require explicit login to reach /app
-
-    </script>
-    <script src="/assets/theme.js"></script>
+    <div class="footer">Secure login for users and admins.</div>
+    <script src="/assets/main.js"></script>
 </body>
 </html>

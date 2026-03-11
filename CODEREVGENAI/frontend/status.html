@@ -143,6 +143,19 @@
 
         loadStatus();
     </script>
+    <script src="router.js"></script>
+    <script src="routing-utils.js"></script>
     <script src="/assets/theme.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.router = new Router();
+            await window.router.init();
+            // Require admin access
+            if (!window.router.isAdmin()) {
+                window.location.href = '/landing.html';
+            }
+        });
+    </script>
 </body>
+
 </html>

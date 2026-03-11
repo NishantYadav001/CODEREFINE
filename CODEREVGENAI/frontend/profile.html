@@ -8,76 +8,86 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/assets/styles.css">
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="min-h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);">
 
-    <!-- Navbar -->
-    <nav class="bg-gray-800 border-b border-gray-700 p-4">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-user-circle text-blue-500 text-2xl"></i>
-                <span class="text-xl font-bold">My Profile</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <button id="theme-toggle" class="p-2 rounded hover:bg-gray-700 transition-colors">
-                    <i class="fas fa-moon text-yellow-400"></i>
-                </button>
-            <a href="/app" class="text-gray-300 hover:text-white">Back to Editor</a>
+    <!-- Modern Navigation -->
+    <nav class="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-user-circle text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">My Profile</h1>
+                        <p class="text-xs text-gray-400">Account Settings</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="theme-toggle" class="btn-icon">
+                        <i class="fas fa-moon text-yellow-400"></i>
+                    </button>
+                    <a href="/app" class="btn-secondary btn-sm">Back to Editor</a>
+                </div>
             </div>
         </div>
     </nav>
 
-    <div class="container mx-auto p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+    <div class="container mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         <!-- Sidebar / User Info -->
-        <div class="col-span-1 bg-gray-800 rounded-lg p-6 border border-gray-700 h-fit">
-            <div class="text-center mb-6">
-                <div class="relative w-24 h-24 mx-auto mb-4 group cursor-pointer" onclick="document.getElementById('avatar-upload').click()">
-                    <div id="avatar-container" class="w-full h-full bg-blue-600 rounded-full flex items-center justify-center text-3xl font-bold overflow-hidden border-2 border-gray-700 group-hover:border-blue-500 transition-colors">
-                        <span id="avatar-initial">U</span>
-                        <img id="avatar-img" src="" class="w-full h-full object-cover hidden">
+        <div class="lg:col-span-1">
+            <div class="card h-fit">
+                <div class="text-center mb-6">
+                    <div class="relative w-24 h-24 mx-auto mb-4 group cursor-pointer" onclick="document.getElementById('avatar-upload').click()">
+                        <div id="avatar-container" class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-4xl font-bold overflow-hidden border-4 border-white/10 group-hover:border-white/30 transition-all shadow-xl">
+                            <span id="avatar-initial" class="text-white">U</span>
+                            <img id="avatar-img" src="" class="w-full h-full object-cover hidden">
+                        </div>
+                        <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-camera text-white text-xl"></i>
+                        </div>
+                        <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
                     </div>
-                    <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <i class="fas fa-camera text-white"></i>
+                    <h2 class="text-2xl font-bold text-white" id="profile-username">Loading...</h2>
+                    <p class="text-gray-400 mt-1" id="profile-email">loading@example.com</p>
+                </div>
+                
+                <div class="border-t border-white/10 pt-6">
+                    <h3 class="font-bold mb-4 text-white text-sm uppercase tracking-wider">Account Stats</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                            <span class="text-gray-400 text-sm">Reviews</span>
+                            <span class="badge badge-primary" id="stat-reviews">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                            <span class="text-gray-400 text-sm">Generations</span>
+                            <span class="badge badge-success" id="stat-gens">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                            <span class="text-gray-400 text-sm">Top Language</span>
+                            <span class="text-blue-400 font-semibold" id="stat-lang">-</span>
+                        </div>
                     </div>
-                    <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
-                </div>
-                <h2 class="text-2xl font-bold" id="profile-username">Loading...</h2>
-                <p class="text-gray-400" id="profile-email">loading@example.com</p>
-            </div>
-            
-            <div class="border-t border-gray-700 pt-4">
-                <h3 class="font-bold mb-3 text-gray-300">Account Stats</h3>
-                <div class="flex justify-between mb-2">
-                    <span class="text-gray-400">Reviews</span>
-                    <span class="font-bold" id="stat-reviews">0</span>
-                </div>
-                <div class="flex justify-between mb-2">
-                    <span class="text-gray-400">Generations</span>
-                    <span class="font-bold" id="stat-gens">0</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-400">Top Language</span>
-                    <span class="text-blue-400" id="stat-lang">-</span>
                 </div>
             </div>
         </div>
 
         <!-- Settings Form -->
-        <div class="col-span-1 md:col-span-2 bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h3 class="text-xl font-bold mb-6 border-b border-gray-700 pb-2">Account Settings</h3>
-            
-            <form id="update-form" class="space-y-6">
-                <div>
-                    <label class="block text-gray-400 mb-2">Email Address</label>
-                    <input type="email" id="input-email" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
-                </div>
+        <div class="lg:col-span-2">
+            <div class="card">
+                <h3 class="text-2xl font-bold mb-6 text-white pb-4 border-b border-white/10">Account Settings</h3>
+                
+                <form id="update-form" class="space-y-6">
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" id="input-email" class="form-input" placeholder="your@email.com">
+                    </div>
 
-                <div>
-                    <label class="block text-gray-400 mb-2">Current Password <span class="text-xs text-gray-500">(Required to change password)</span></label>
-                    <input type="password" id="input-current-password" placeholder="Enter current password" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none mb-4">
-                </div>
-
-                <div>
+                    <div class="form-group">
+                        <label class="form-label">Current Password <span class="text-xs text-gray-500">(Required to change password)</span></label>
+                        <input type="password" id="input-current-password" placeholder="Enter current password" class="form-input">
+                    </div>
                     <label class="block text-gray-400 mb-2">New Password</label>
                     <input type="password" id="input-new-password" placeholder="Leave blank to keep current" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-blue-500 focus:outline-none">
                     <div class="mt-2 transition-all duration-300 opacity-0" id="strength-container">
@@ -241,9 +251,10 @@
             const res = await fetch(`/api/profile/${username}`, { method: 'DELETE' });
             if(res.ok) {
                 alert("Account deleted.");
+                if (window.router) window.router.logout();
                 localStorage.clear();
                 sessionStorage.clear();
-                window.location.href = '/login';
+                window.location.href = '/landing.html';
             } else {
                 alert("Failed to delete account.");
                 closeDeleteModal();
@@ -252,6 +263,17 @@
 
         loadProfile();
     </script>
+    <script src="router.js"></script>
+    <script src="routing-utils.js"></script>
     <script src="/assets/theme.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.router = new Router();
+            await window.router.init();
+            if (!window.router.isAuthenticated()) {
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -11,47 +11,88 @@
         button.bg-slate-800 { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-50 min-h-screen p-8">
-    <div class="container mx-auto max-w-4xl">
-        <div class="flex items-center justify-between mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-sky-400"><i class="fas fa-chart-line mr-3"></i>Student Dashboard</h1>
-                <p class="text-slate-400">Monitoring student engagement and code integrity</p>
-            </div>
-            <div class="flex gap-3">
-                <button id="theme-toggle" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
-                    <i class="fas fa-moon text-yellow-400"></i>
-                </button>
-                <a id="nav-profile" href="/profile" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
-                    <i class="fas fa-user mr-2"></i>Profile
-                </a>
-                <a href="/app" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-all">
-                    <i class="fas fa-arrow-left mr-2"></i>Back to Tool
-                </a>
-                <button id="nav-auth" onclick="logout()" class="bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-lg border border-red-900/50 text-sm transition-all">
-                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                </button>
+<body class="min-h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);">
+    <!-- Modern Navigation -->
+    <nav class="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">Student Dashboard</h1>
+                        <p class="text-xs text-gray-400">Monitor engagement & integrity</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="theme-toggle" class="btn-icon">
+                        <i class="fas fa-moon text-yellow-400"></i>
+                    </button>
+                    <a href="/profile" class="btn-secondary btn-sm">
+                        <i class="fas fa-user mr-2"></i>Profile
+                    </a>
+                    <a href="/app" class="btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left mr-2"></i>Back
+                    </a>
+                    <button onclick="logout()" class="btn-danger btn-sm">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
             </div>
         </div>
+    </nav>
 
+    <div class="container mx-auto max-w-6xl px-6 py-8">
+
+        <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                <p class="text-slate-400 text-xs font-bold uppercase">Active Students</p>
-                <p id="total-students" class="text-3xl font-bold mt-2">0</p>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Students</p>
+                        <p id="total-students" class="text-4xl font-bold mt-2 text-gradient">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-users text-blue-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                <p class="text-slate-400 text-xs font-bold uppercase">Total Reviews</p>
-                <p id="total-reviews" class="text-3xl font-bold mt-2 text-purple-400">0</p>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Reviews</p>
+                        <p id="total-reviews" class="text-4xl font-bold mt-2 text-purple-400">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-clipboard-check text-purple-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                <p class="text-slate-400 text-xs font-bold uppercase">Plagiarism Resets</p>
-                <button onclick="resetPlag()" class="mt-2 text-sm text-red-400 hover:underline">Reset Database</button>
+            <div class="card hover-lift stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Database</p>
+                        <button onclick="resetPlag()" class="mt-2 btn-danger btn-sm">
+                            <i class="fas fa-trash mr-2"></i>Reset
+                        </button>
+                    </div>
+                    <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-database text-red-400 text-xl"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
-            <h3 class="text-lg font-bold mb-6 italic text-slate-500">Student Activity Analysis</h3>
-            <canvas id="activityChart" class="max-h-[400px]"></canvas>
+        <!-- Chart Card -->
+        <div class="card">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white">Student Activity Analysis</h3>
+                <span class="badge badge-info"><i class="fas fa-chart-bar mr-2"></i>Analytics</span>
+            </div>
+            <div class="bg-white/5 rounded-xl p-4">
+                <canvas id="activityChart" class="max-h-[400px]"></canvas>
+            </div>
         </div>
     </div>
 
@@ -104,13 +145,29 @@
         }
 
         function logout() {
+            if (window.router) {
+                window.router.logout();
+            }
             localStorage.clear();
             sessionStorage.clear();
-            window.location.href = '/login';
+            window.location.href = '/landing.html';
         }
 
         loadDashboard();
     </script>
+    <script src="router.js"></script>
+    <script src="routing-utils.js"></script>
     <script src="/assets/theme.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.router = new Router();
+            await window.router.init();
+            
+            // Require authentication
+            if (!window.router.isAuthenticated()) {
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
 </body>
 </html>
